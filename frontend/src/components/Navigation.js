@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, FolderKanban, Star, Settings, BarChart3 } from 'lucide-react';
+import { Home, FolderKanban, Star, Settings, BarChart3, Wrench } from 'lucide-react';
 
 function Navigation() {
   return (
@@ -21,6 +21,10 @@ function Navigation() {
         <NavLink to="/featured" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
           <Star />
           <span>Featured Solutions</span>
+        </NavLink>
+        <NavLink to="/tools/roi-assistant" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+          <Wrench />
+          <span>ROI Assistant</span>
         </NavLink>
         <NavLink to="/management" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
           <Settings />

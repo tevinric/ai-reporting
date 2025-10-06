@@ -37,6 +37,9 @@ export const API_ENDPOINTS = {
   // Progress Updates
   PROGRESS_UPDATES: (id) => `${API_BASE_URL}/api/initiatives/${id}/progress-updates`,
   PROGRESS_UPDATE_BY_ID: (id) => `${API_BASE_URL}/api/progress-updates/${id}`,
+
+  // ROI Assistant
+  ROI_ASSISTANT: `${API_BASE_URL}/api/roi-assistant`,
 };
 
 export default API_BASE_URL;

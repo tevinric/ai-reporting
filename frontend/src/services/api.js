@@ -63,4 +63,13 @@ export const createProgressUpdate = (initiativeId, data) => api.post(API_ENDPOIN
 export const updateProgressUpdate = (id, data) => api.put(API_ENDPOINTS.PROGRESS_UPDATE_BY_ID(id), data);
 export const deleteProgressUpdate = (id) => api.delete(API_ENDPOINTS.PROGRESS_UPDATE_BY_ID(id));
 
-export default api;
+// ROI Assistant
+export const roiAssistant = (data) => api.post(API_ENDPOINTS.ROI_ASSISTANT, data);
+
+export default {
+  get: api.get.bind(api),
+  post: api.post.bind(api),
+  put: api.put.bind(api),
+  delete: api.delete.bind(api),
+  roiAssistant,
+};

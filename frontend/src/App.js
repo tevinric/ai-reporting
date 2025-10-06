@@ -7,6 +7,7 @@ import InitiativeForm from './pages/InitiativeForm';
 import ProjectView from './pages/ProjectView';
 import FeaturedSolutions from './pages/FeaturedSolutions';
 import Management from './pages/Management';
+import ROIAssistant from './pages/ROIAssistant';
 import './App.css';
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
             <Route path="/initiatives/:id/edit" element={<InitiativeForm />} />
             <Route path="/initiatives/:id" element={<ProjectView />} />
             <Route path="/featured" element={<FeaturedSolutions />} />
+            <Route path="/tools/roi-assistant" element={<ROIAssistant />} />
             <Route path="/management" element={<Management />} />
           </Routes>
         </div>

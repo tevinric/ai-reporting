@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 import logging
 from dotenv import load_dotenv
+from openai import OpenAI
 
 # Load environment variables
 load_dotenv()
@@ -31,6 +32,15 @@ DEFAULT_USER = {
     'name': 'Tester',
     'email': 'test@tester.com'
 }
+
+# OpenAI client configuration
+openai_api_key = os.environ.get('OPENAI_API_KEY')
+openai_base_url = os.environ.get('OPENAI_BASE_URL')
+
+if openai_base_url:
+    openai_client = OpenAI(api_key=openai_api_key, base_url=openai_base_url)
+else:
+    openai_client = OpenAI(api_key=openai_api_key)
 
 def get_db_connection():
     """Create and return a database connection"""
@@ -1690,6 +1700,110 @@ def delete_progress_update(update_id):
     except Exception as e:
         logger.error(f"Error deleting progress update: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+# ==================== ROI Assistant ====================
+
+@app.route('/api/roi-assistant', methods=['POST'])
+def roi_assistant():
+    """Get ROI recommendations from OpenAI based on user responses"""
+    try:
+        data = request.json
+
+        # Build the prompt from user responses
+        prompt = f"""You are an ROI measurement expert for a South African insurance company.
+A user is planning to implement an initiative and needs guidance on which ROI metrics to use and how to measure them.
+
+Here is the information provided about the initiative:
+
+Initiative Type: {data.get('initiative_type', 'Not specified')}
+Primary Value Type: {data.get('value_type', 'Not specified')}
+Implementation Scale: {data.get('scale', 'Not specified')}
+Units Processed Per Month: {data.get('units_processed', 'Not specified')}
+Current Process Status: {data.get('current_process', 'Not specified')}
+Success Measurement Approach: {data.get('success_metrics', 'Not specified')}
+Expected ROI Timeline: {data.get('timeline', 'Not specified')}
+Industry Challenges Addressed: {data.get('industry_specifics', 'Not specified')}
+
+Based on this information, please provide:
+
+1. RECOMMENDED ROI METRICS
+   - List the specific quantitative and/or qualitative metrics that would be most appropriate for this initiative
+   - Explain why each metric is relevant given the context provided
+
+2. DATA COMPILATION GUIDANCE
+   - Provide clear, step-by-step guidance on how to collect and compile data for each recommended metric
+   - Include specific examples relevant to the South African insurance market
+   - Assume the user has no technical knowledge - use simple, easy-to-understand language
+
+3. MEASUREMENT FRAMEWORK
+   - Suggest how frequently to measure each metric
+   - Provide baseline establishment recommendations
+   - Include any formulas or calculations needed (explained in simple terms)
+
+4. ADDITIONAL RECOMMENDATIONS
+   - Highlight any considerations specific to the South African insurance industry
+   - Suggest any complementary metrics that could add value
+   - Provide tips for ensuring accurate and meaningful ROI measurement
+
+IMPORTANT GUIDELINES:
+- Write in a professional tone without using any emojis or emoticons
+- Focus on practical, actionable guidance
+- Use clear, non-technical language that anyone can understand
+- Consider the South African insurance market context in your recommendations
+- Be specific and provide concrete examples where possible
+- Format your response clearly with headers and bullet points for readability"""
+
+        # Call OpenAI API
+        response = openai_client.chat.completions.create(
+            model="gpt-4-turbo-preview",  # Using GPT-4 Turbo as it's the latest stable version
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an expert ROI consultant for insurance companies in South Africa. You provide clear, professional, actionable guidance on measuring return on investment for AI and RPA initiatives. You never use emojis and always write in a professional manner suitable for executive reporting."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.7,
+            max_tokens=2000
+        )
+
+        recommendation = response.choices[0].message.content
+
+        # Save conversation to database for tracking
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            import json
+            cursor.execute("""
+                INSERT INTO roi_conversations (
+                    user_responses, llm_recommendation,
+                    created_by_name, created_by_email
+                ) VALUES (?, ?, ?, ?)
+            """, (
+                json.dumps(data),
+                recommendation,
+                DEFAULT_USER['name'],
+                DEFAULT_USER['email']
+            ))
+
+            conn.commit()
+            conn.close()
+        except Exception as db_error:
+            logger.warning(f"Failed to save ROI conversation to database: {str(db_error)}")
+            # Don't fail the request if database save fails
+
+        return jsonify({
+            'recommendation': recommendation,
+            'status': 'success'
+        })
+
+    except Exception as e:
+        logger.error(f"Error in ROI assistant: {str(e)}")
+        return jsonify({'error': 'Failed to generate ROI recommendations. Please try again.'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)
