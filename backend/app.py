@@ -529,7 +529,13 @@ def update_initiative(initiative_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Update initiative
+        # Helper function to process string fields - only strip if not empty
+        def process_string(value):
+            if value is None or value == '':
+                return None
+            return value.strip() if isinstance(value, str) else value
+
+        # Update initiative - use the provided values or None if empty
         cursor.execute("""
             UPDATE initiatives SET
                 use_case_name = ?,
@@ -558,26 +564,26 @@ def update_initiative(initiative_id):
                 modified_by_email = ?
             WHERE id = ?
         """, (
-            data.get('use_case_name', '').strip() if data.get('use_case_name') else None,
-            data.get('description', '').strip() if data.get('description') else None,
-            data.get('benefit', '').strip() if data.get('benefit') else None,
-            data.get('strategic_objective', '').strip() if data.get('strategic_objective') else None,
-            data.get('status', '').strip() if data.get('status') else None,
+            process_string(data.get('use_case_name')),
+            process_string(data.get('description')),
+            process_string(data.get('benefit')),
+            process_string(data.get('strategic_objective')),
+            process_string(data.get('status')),
             data.get('percentage_complete'),
-            data.get('process_owner', '').strip() if data.get('process_owner') else None,
-            data.get('business_owner', '').strip() if data.get('business_owner') else None,
+            process_string(data.get('process_owner')),
+            process_string(data.get('business_owner')),
             convert_to_date(data.get('start_date')),
             convert_to_date(data.get('expected_completion_date')),
             convert_to_date(data.get('actual_completion_date')),
-            data.get('priority', '').strip() if data.get('priority') else None,
-            data.get('risk_level', '').strip() if data.get('risk_level') else None,
-            data.get('technology_stack', '').strip() if data.get('technology_stack') else None,
-            data.get('team_size'),
-            data.get('budget_allocated'),
-            data.get('budget_spent'),
-            data.get('health_status', '').strip() if data.get('health_status') else 'Green',
-            data.get('initiative_type', '').strip() if data.get('initiative_type') else 'Internal AI',
-            data.get('is_featured', 0),
+            process_string(data.get('priority')),
+            process_string(data.get('risk_level')),
+            process_string(data.get('technology_stack')),
+            data.get('team_size') if data.get('team_size') not in [None, ''] else None,
+            data.get('budget_allocated') if data.get('budget_allocated') not in [None, ''] else None,
+            data.get('budget_spent') if data.get('budget_spent') not in [None, ''] else None,
+            process_string(data.get('health_status')),
+            process_string(data.get('initiative_type')),
+            1 if data.get('is_featured') else 0,
             convert_to_date(data.get('featured_month')),
             DEFAULT_USER['name'],
             DEFAULT_USER['email'],
@@ -588,10 +594,11 @@ def update_initiative(initiative_id):
         cursor.execute("DELETE FROM initiative_departments WHERE initiative_id = ?", initiative_id)
         departments = data.get('departments', [])
         for dept in departments:
-            cursor.execute("""
-                INSERT INTO initiative_departments (initiative_id, department)
-                VALUES (?, ?)
-            """, (initiative_id, dept))
+            if dept:  # Only insert non-empty departments
+                cursor.execute("""
+                    INSERT INTO initiative_departments (initiative_id, department)
+                    VALUES (?, ?)
+                """, (initiative_id, dept))
 
         conn.commit()
         conn.close()

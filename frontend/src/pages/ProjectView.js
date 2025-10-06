@@ -665,13 +665,13 @@ function ProjectView() {
                               <input
                                 type="number"
                                 value={editingMetric.value}
-                                onChange={(e) => setEditingMetric({ ...editingMetric, value: e.target.value })}
+                                onChange={(e) => setEditingMetric(prev => ({ ...prev, value: e.target.value }))}
                                 style={{ width: '100%', padding: '6px', marginBottom: '8px', borderRadius: '4px', border: '1px solid #d1d5db', fontSize: '14px' }}
                                 placeholder="Value"
                               />
                               <textarea
                                 value={editingMetric.comments}
-                                onChange={(e) => setEditingMetric({ ...editingMetric, comments: e.target.value })}
+                                onChange={(e) => setEditingMetric(prev => ({ ...prev, comments: e.target.value }))}
                                 style={{ width: '100%', padding: '6px', marginBottom: '8px', borderRadius: '4px', border: '1px solid #d1d5db', fontSize: '13px' }}
                                 placeholder="Comments"
                                 rows="2"

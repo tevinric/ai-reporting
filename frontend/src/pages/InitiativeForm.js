@@ -123,7 +123,7 @@ function InitiativeForm() {
         benefit: data.benefit || '',
         strategic_objective: data.strategic_objective || '',
         status: data.status || 'Ideation',
-        percentage_complete: data.percentage_complete || 0,
+        percentage_complete: data.percentage_complete ?? 0,
         process_owner: data.process_owner || '',
         business_owner: data.business_owner || '',
         start_date: data.start_date || '',
@@ -132,12 +132,12 @@ function InitiativeForm() {
         priority: data.priority || '',
         risk_level: data.risk_level || '',
         technology_stack: data.technology_stack || '',
-        team_size: data.team_size || '',
-        budget_allocated: data.budget_allocated || '',
-        budget_spent: data.budget_spent || '',
+        team_size: data.team_size ?? '',
+        budget_allocated: data.budget_allocated ?? '',
+        budget_spent: data.budget_spent ?? '',
         health_status: data.health_status || 'Green',
         initiative_type: data.initiative_type || 'Internal AI',
-        is_featured: data.is_featured || false,
+        is_featured: data.is_featured ?? false,
         featured_month: data.featured_month || '',
         departments: data.departments || []
       });
@@ -173,11 +173,36 @@ function InitiativeForm() {
       setLoading(true);
       setError(null);
 
+      // Format the data before sending to backend
+      const formattedData = {
+        ...formData,
+        // Convert empty strings to null for numeric fields
+        percentage_complete: formData.percentage_complete === '' ? 0 : Number(formData.percentage_complete),
+        team_size: formData.team_size === '' ? null : Number(formData.team_size),
+        budget_allocated: formData.budget_allocated === '' ? null : Number(formData.budget_allocated),
+        budget_spent: formData.budget_spent === '' ? null : Number(formData.budget_spent),
+        // Ensure boolean is properly formatted
+        is_featured: Boolean(formData.is_featured),
+        // Trim all string fields
+        use_case_name: formData.use_case_name?.trim() || '',
+        description: formData.description?.trim() || '',
+        benefit: formData.benefit?.trim() || '',
+        strategic_objective: formData.strategic_objective?.trim() || '',
+        status: formData.status?.trim() || 'Ideation',
+        process_owner: formData.process_owner?.trim() || '',
+        business_owner: formData.business_owner?.trim() || '',
+        priority: formData.priority?.trim() || '',
+        risk_level: formData.risk_level?.trim() || '',
+        technology_stack: formData.technology_stack?.trim() || '',
+        health_status: formData.health_status?.trim() || 'Green',
+        initiative_type: formData.initiative_type?.trim() || 'Internal AI'
+      };
+
       if (isEdit) {
-        await updateInitiative(id, formData);
+        await updateInitiative(id, formattedData);
         setSuccess('Initiative updated successfully');
       } else {
-        await createInitiative(formData);
+        await createInitiative(formattedData);
         setSuccess('Initiative created successfully');
       }
 
@@ -330,7 +355,7 @@ function InitiativeForm() {
                 type="checkbox"
                 name="is_featured"
                 checked={formData.is_featured}
-                onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
+                onChange={(e) => setFormData(prev => ({ ...prev, is_featured: e.target.checked }))}
                 style={{ width: 'auto', margin: 0 }}
               />
               Mark as Featured Solution
