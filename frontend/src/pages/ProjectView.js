@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, TrendingUp, TrendingDown, Calendar, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Edit, TrendingUp, TrendingDown, Calendar, AlertTriangle, Edit2, Trash2, Save } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getInitiativeById, getInitiativeMetrics, saveInitiativeMetric } from '../services/api';
 import RiskModal from '../components/RiskModal';
+import axios from 'axios';
+import { API_ENDPOINTS } from '../config/api';
 
 function ProjectView() {
   const { id } = useParams();
@@ -15,6 +17,7 @@ function ProjectView() {
   const [error, setError] = useState(null);
   const [showMetricForm, setShowMetricForm] = useState(false);
   const [showRiskModal, setShowRiskModal] = useState(false);
+  const [editingMetric, setEditingMetric] = useState(null);
   const [metricFormData, setMetricFormData] = useState({
     metric_period: '',
     customer_experience_score: '',
@@ -109,6 +112,62 @@ function ProjectView() {
       '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'
     ];
     return colors[index % colors.length];
+  };
+
+  const handleEditMetric = (period, metricName, metricData) => {
+    setEditingMetric({
+      period,
+      metricName,
+      value: metricData.value || '',
+      comments: metricData.comments || ''
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      await axios.put(
+        `${API_ENDPOINTS.INITIATIVE_METRICS(id)}/${editingMetric.period}/metric/${encodeURIComponent(editingMetric.metricName)}`,
+        {
+          value: editingMetric.value,
+          comments: editingMetric.comments
+        }
+      );
+      setEditingMetric(null);
+      loadData();
+    } catch (err) {
+      alert('Failed to update metric');
+      console.error(err);
+    }
+  };
+
+  const handleDeleteMetric = async (period, metricName) => {
+    if (!window.confirm(`Are you sure you want to delete "${metricName}" for ${period}?`)) {
+      return;
+    }
+
+    try {
+      await axios.delete(
+        `${API_ENDPOINTS.INITIATIVE_METRICS(id)}/${period}/metric/${encodeURIComponent(metricName)}`
+      );
+      loadData();
+    } catch (err) {
+      alert('Failed to delete metric');
+      console.error(err);
+    }
+  };
+
+  const handleDeletePeriod = async (period) => {
+    if (!window.confirm(`Are you sure you want to delete ALL metrics for ${period}?`)) {
+      return;
+    }
+
+    try {
+      await axios.delete(`${API_ENDPOINTS.INITIATIVE_METRICS(id)}/${period}`);
+      loadData();
+    } catch (err) {
+      alert('Failed to delete period');
+      console.error(err);
+    }
   };
 
   const handleMetricFormChange = (e) => {
@@ -552,25 +611,85 @@ function ProjectView() {
                     <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#1f2937', margin: 0 }}>
                       {metric.metric_period}
                     </h4>
-                    <span style={{ fontSize: '12px', color: '#64748b' }}>
-                      Updated: {new Date(metric.modified_at).toLocaleDateString()}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>
+                        Updated: {new Date(metric.modified_at).toLocaleDateString()}
+                      </span>
+                      <button
+                        onClick={() => handleDeletePeriod(metric.metric_period)}
+                        className="btn btn-danger"
+                        style={{ padding: '4px 8px', fontSize: '12px' }}
+                        title="Delete entire period"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
 
                   {metric.additional_metrics && Object.keys(metric.additional_metrics).length > 0 ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '12px' }}>
                       {Object.entries(metric.additional_metrics).map(([metricName, metricData]) => (
                         <div key={metricName} style={{ padding: '12px', backgroundColor: 'white', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
-                          <div style={{ fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>
-                            {metricName}
-                          </div>
-                          <div style={{ fontSize: '24px', fontWeight: '700', color: '#1f2937', marginBottom: '4px' }}>
-                            {metricData.value || '-'}
-                          </div>
-                          {metricData.comments && (
-                            <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #e5e7eb' }}>
-                              {metricData.comments}
+                          {editingMetric && editingMetric.period === metric.metric_period && editingMetric.metricName === metricName ? (
+                            <div>
+                              <div style={{ fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
+                                Edit: {metricName}
+                              </div>
+                              <input
+                                type="number"
+                                value={editingMetric.value}
+                                onChange={(e) => setEditingMetric({ ...editingMetric, value: e.target.value })}
+                                style={{ width: '100%', padding: '6px', marginBottom: '8px', borderRadius: '4px', border: '1px solid #d1d5db', fontSize: '14px' }}
+                                placeholder="Value"
+                              />
+                              <textarea
+                                value={editingMetric.comments}
+                                onChange={(e) => setEditingMetric({ ...editingMetric, comments: e.target.value })}
+                                style={{ width: '100%', padding: '6px', marginBottom: '8px', borderRadius: '4px', border: '1px solid #d1d5db', fontSize: '13px' }}
+                                placeholder="Comments"
+                                rows="2"
+                              />
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button onClick={handleSaveEdit} className="btn btn-success" style={{ padding: '6px 12px', fontSize: '12px', flex: 1 }}>
+                                  <Save size={14} /> Save
+                                </button>
+                                <button onClick={() => setEditingMetric(null)} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', flex: 1 }}>
+                                  Cancel
+                                </button>
+                              </div>
                             </div>
+                          ) : (
+                            <>
+                              <div style={{ fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>
+                                {metricName}
+                              </div>
+                              <div style={{ fontSize: '24px', fontWeight: '700', color: '#1f2937', marginBottom: '4px' }}>
+                                {metricData.value || '-'}
+                              </div>
+                              {metricData.comments && (
+                                <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #e5e7eb' }}>
+                                  {metricData.comments}
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', gap: '4px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e5e7eb' }}>
+                                <button
+                                  onClick={() => handleEditMetric(metric.metric_period, metricName, metricData)}
+                                  className="btn btn-secondary"
+                                  style={{ padding: '4px 8px', fontSize: '11px', flex: 1 }}
+                                  title="Edit metric"
+                                >
+                                  <Edit2 size={12} /> Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteMetric(metric.metric_period, metricName)}
+                                  className="btn btn-danger"
+                                  style={{ padding: '4px 8px', fontSize: '11px', flex: 1 }}
+                                  title="Delete metric"
+                                >
+                                  <Trash2 size={12} /> Delete
+                                </button>
+                              </div>
+                            </>
                           )}
                         </div>
                       ))}

@@ -441,10 +441,151 @@ def get_initiative_metric_for_period(initiative_id, period):
 
         metric = dict_from_row(cursor, row)
 
+        # Parse additional_metrics JSON if present
+        if metric.get('additional_metrics'):
+            try:
+                import json
+                metric['additional_metrics'] = json.loads(metric['additional_metrics'])
+            except:
+                metric['additional_metrics'] = {}
+        else:
+            metric['additional_metrics'] = {}
+
         conn.close()
         return jsonify(metric)
     except Exception as e:
         logger.error(f"Error fetching metric: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/initiatives/<int:initiative_id>/metrics/<period>/metric/<metric_name>', methods=['PUT'])
+def update_individual_metric(initiative_id, period, metric_name):
+    """Update a specific metric within a period"""
+    try:
+        import json
+        data = request.json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get existing metrics
+        cursor.execute("""
+            SELECT id, additional_metrics FROM monthly_metrics
+            WHERE initiative_id = ? AND metric_period = ?
+        """, (initiative_id, period))
+
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Metrics not found for this period'}), 404
+
+        # Parse existing metrics
+        existing_metrics = {}
+        if row[1]:
+            try:
+                existing_metrics = json.loads(row[1])
+            except:
+                existing_metrics = {}
+
+        # Update the specific metric
+        existing_metrics[metric_name] = {
+            'value': data.get('value'),
+            'comments': data.get('comments', '')
+        }
+
+        # Save back to database
+        cursor.execute("""
+            UPDATE monthly_metrics
+            SET additional_metrics = ?,
+                modified_at = GETDATE(),
+                modified_by_name = ?,
+                modified_by_email = ?
+            WHERE id = ?
+        """, (
+            json.dumps(existing_metrics),
+            DEFAULT_USER['name'],
+            DEFAULT_USER['email'],
+            row[0]
+        ))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Metric updated successfully'})
+    except Exception as e:
+        logger.error(f"Error updating individual metric: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/initiatives/<int:initiative_id>/metrics/<period>/metric/<metric_name>', methods=['DELETE'])
+def delete_individual_metric(initiative_id, period, metric_name):
+    """Delete a specific metric from a period"""
+    try:
+        import json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get existing metrics
+        cursor.execute("""
+            SELECT id, additional_metrics FROM monthly_metrics
+            WHERE initiative_id = ? AND metric_period = ?
+        """, (initiative_id, period))
+
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Metrics not found for this period'}), 404
+
+        # Parse existing metrics
+        existing_metrics = {}
+        if row[1]:
+            try:
+                existing_metrics = json.loads(row[1])
+            except:
+                existing_metrics = {}
+
+        # Remove the specific metric
+        if metric_name in existing_metrics:
+            del existing_metrics[metric_name]
+
+        # Save back to database
+        cursor.execute("""
+            UPDATE monthly_metrics
+            SET additional_metrics = ?,
+                modified_at = GETDATE(),
+                modified_by_name = ?,
+                modified_by_email = ?
+            WHERE id = ?
+        """, (
+            json.dumps(existing_metrics) if existing_metrics else None,
+            DEFAULT_USER['name'],
+            DEFAULT_USER['email'],
+            row[0]
+        ))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Metric deleted successfully'})
+    except Exception as e:
+        logger.error(f"Error deleting individual metric: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/initiatives/<int:initiative_id>/metrics/<period>', methods=['DELETE'])
+def delete_period_metrics(initiative_id, period):
+    """Delete all metrics for a specific period"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            DELETE FROM monthly_metrics
+            WHERE initiative_id = ? AND metric_period = ?
+        """, (initiative_id, period))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Period metrics deleted successfully'})
+    except Exception as e:
+        logger.error(f"Error deleting period metrics: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 def convert_to_numeric(value):
@@ -483,18 +624,29 @@ def create_initiative_metric(initiative_id):
 
         # Handle additional dynamic metrics
         import json
-        additional_metrics = data.get('additional_metrics', {})
-        additional_metrics_json = json.dumps(additional_metrics) if additional_metrics else None
+        new_additional_metrics = data.get('additional_metrics', {})
 
         # Check if metric already exists
         cursor.execute("""
-            SELECT id FROM monthly_metrics
+            SELECT id, additional_metrics FROM monthly_metrics
             WHERE initiative_id = ? AND metric_period = ?
         """, (initiative_id, metric_period))
 
         existing = cursor.fetchone()
 
         if existing:
+            # Merge new metrics with existing metrics (don't overwrite)
+            existing_metrics = {}
+            if existing[1]:  # existing[1] is the additional_metrics column
+                try:
+                    existing_metrics = json.loads(existing[1])
+                except:
+                    existing_metrics = {}
+
+            # Merge: new metrics are added, existing metrics are preserved
+            merged_metrics = {**existing_metrics, **new_additional_metrics}
+            additional_metrics_json = json.dumps(merged_metrics) if merged_metrics else None
+
             # Update existing metric
             cursor.execute("""
                 UPDATE monthly_metrics SET
@@ -562,7 +714,9 @@ def create_initiative_metric(initiative_id):
                 existing[0]
             ))
         else:
-            # Insert new metric
+            # Insert new metric (first time for this period)
+            additional_metrics_json = json.dumps(new_additional_metrics) if new_additional_metrics else None
+
             cursor.execute("""
                 INSERT INTO monthly_metrics (
                     initiative_id, metric_period,
