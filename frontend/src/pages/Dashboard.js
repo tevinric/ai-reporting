@@ -29,6 +29,8 @@ function Dashboard() {
 
   useEffect(() => {
     loadTrendsWithFilters();
+    // Reset to page 1 when filters change
+    setCurrentPage(1);
   }, [selectedInitiatives, selectedInitiativeType]);
 
   const loadDashboardData = async () => {
@@ -50,6 +52,84 @@ function Dashboard() {
       setLoading(false);
     }
   };
+
+  // Filter initiatives based on selected filters
+  const getFilteredInitiatives = () => {
+    let filtered = [...allInitiatives];
+
+    // Filter by specific initiative IDs
+    if (selectedInitiatives.length > 0) {
+      filtered = filtered.filter(i => selectedInitiatives.includes(i.id));
+    }
+
+    // Filter by initiative type
+    if (selectedInitiativeType) {
+      filtered = filtered.filter(i => i.initiative_type === selectedInitiativeType);
+    }
+
+    return filtered;
+  };
+
+  // Calculate filtered statistics
+  const getFilteredStats = () => {
+    const filtered = getFilteredInitiatives();
+
+    return {
+      total_initiatives: filtered.length,
+      completed_count: filtered.filter(i => i.status === 'Live (Complete)').length,
+      in_progress_count: filtered.filter(i => i.status === 'In Progress').length,
+      ideation_count: filtered.filter(i => i.status === 'Ideation').length,
+      new_initiatives_count: filtered.filter(i => {
+        const createdDate = new Date(i.created_at);
+        const now = new Date();
+        return createdDate.getMonth() === now.getMonth() && createdDate.getFullYear() === now.getFullYear();
+      }).length,
+      avg_completion: filtered.length > 0
+        ? filtered.reduce((sum, i) => sum + (i.percentage_complete || 0), 0) / filtered.length
+        : 0,
+      in_progress_initiatives: filtered.filter(i => i.status === 'In Progress').slice(0, 10),
+      by_department: calculateDepartmentStats(filtered),
+      by_benefit: calculateBenefitStats(filtered),
+      pinned_initiatives: filtered.filter(i => i.is_pinned)
+    };
+  };
+
+  // Helper function to calculate department statistics
+  const calculateDepartmentStats = (initiatives) => {
+    const deptMap = {};
+    initiatives.forEach(initiative => {
+      if (initiative.departments && Array.isArray(initiative.departments)) {
+        initiative.departments.forEach(dept => {
+          deptMap[dept] = (deptMap[dept] || 0) + 1;
+        });
+      }
+    });
+    return Object.entries(deptMap).map(([department, count]) => ({ department, count }));
+  };
+
+  // Helper function to calculate benefit statistics
+  const calculateBenefitStats = (initiatives) => {
+    const benefitMap = {};
+    initiatives.forEach(initiative => {
+      if (initiative.benefit) {
+        benefitMap[initiative.benefit] = (benefitMap[initiative.benefit] || 0) + 1;
+      }
+    });
+    return Object.entries(benefitMap).map(([benefit, count]) => ({ benefit, count }));
+  };
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setSelectedInitiatives([]);
+    setSelectedInitiativeType('');
+  };
+
+  // Get the display stats - filtered or original
+  const displayStats = (selectedInitiatives.length > 0 || selectedInitiativeType)
+    ? getFilteredStats()
+    : stats;
+
+  const filteredInitiatives = getFilteredInitiatives();
 
   const loadTrendsWithFilters = async () => {
     try {
@@ -139,9 +219,9 @@ function Dashboard() {
     return COLORS[index % COLORS.length];
   };
 
-  // Pagination
-  const totalPages = Math.ceil(allInitiatives.length / itemsPerPage);
-  const paginatedInitiatives = allInitiatives.slice(
+  // Pagination - use filtered initiatives
+  const totalPages = Math.ceil(filteredInitiatives.length / itemsPerPage);
+  const paginatedInitiatives = filteredInitiatives.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -154,6 +234,8 @@ function Dashboard() {
     return <div className="error-message">{error}</div>;
   }
 
+  const hasActiveFilters = selectedInitiatives.length > 0 || selectedInitiativeType;
+
   return (
     <div>
       <div className="page-header">
@@ -161,11 +243,131 @@ function Dashboard() {
         <p>Overview of all AI initiatives and their performance metrics</p>
       </div>
 
+      {/* Global Filter Controls - Moved to Top */}
+      <div className="card" style={{ marginBottom: '20px', borderLeft: '4px solid #3b82f6' }}>
+        <div className="card-header">
+          <h2>Dashboard Filters</h2>
+          <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
+            Filter all dashboard data by initiative or type
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          {/* Initiative Multiselect */}
+          <div style={{ flex: '1 1 300px', minWidth: '200px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', marginBottom: '6px', color: '#374151' }}>
+              Filter by Initiative(s)
+            </label>
+            <div style={{
+              position: 'relative',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              backgroundColor: 'white',
+              minHeight: '38px',
+              padding: '4px 8px',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '4px',
+              alignItems: 'center'
+            }}>
+              {selectedInitiatives.length === 0 ? (
+                <span style={{ color: '#9ca3af', fontSize: '14px' }}>All initiatives</span>
+              ) : (
+                selectedInitiatives.map(id => {
+                  const initiative = allInitiatives.find(i => i.id === id);
+                  return initiative ? (
+                    <span key={id} style={{
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      {initiative.use_case_name}
+                      <X
+                        size={14}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => handleInitiativeToggle(id)}
+                      />
+                    </span>
+                  ) : null;
+                })
+              )}
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleInitiativeToggle(parseInt(e.target.value));
+                  }
+                }}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  flex: 1,
+                  minWidth: '120px',
+                  fontSize: '14px',
+                  padding: '4px',
+                  backgroundColor: 'transparent'
+                }}
+              >
+                <option value="">+ Add initiative</option>
+                {allInitiatives
+                  .filter(i => !selectedInitiatives.includes(i.id))
+                  .map(i => (
+                    <option key={i.id} value={i.id}>{i.use_case_name}</option>
+                  ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Initiative Type Dropdown */}
+          <div style={{ flex: '0 1 200px', minWidth: '150px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', marginBottom: '6px', color: '#374151' }}>
+              Filter by Type
+            </label>
+            <select
+              value={selectedInitiativeType}
+              onChange={(e) => setSelectedInitiativeType(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: '1px solid #d1d5db',
+                fontSize: '14px',
+                backgroundColor: 'white'
+              }}
+            >
+              <option value="">All Types</option>
+              <option value="Internal AI">Internal AI</option>
+              <option value="RPA">RPA</option>
+              <option value="External AI">External AI</option>
+            </select>
+          </div>
+
+          {/* Clear All Filters Button */}
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              className="btn btn-secondary"
+            >
+              Clear All Filters
+            </button>
+          )}
+        </div>
+        {hasActiveFilters && (
+          <div style={{ marginTop: '12px', padding: '8px 12px', backgroundColor: '#eff6ff', borderRadius: '6px', fontSize: '13px', color: '#1e40af' }}>
+            Showing filtered results: {filteredInitiatives.length} initiative{filteredInitiatives.length !== 1 ? 's' : ''}
+          </div>
+        )}
+      </div>
+
       {/* Key Statistics */}
       <div className="stats-grid">
         <div className="stat-card">
           <span className="stat-label">Total Initiatives</span>
-          <div className="stat-value">{stats?.total_initiatives || 0}</div>
+          <div className="stat-value">{displayStats?.total_initiatives || 0}</div>
           <div className="stat-change">
             <FolderKanban size={16} />
             <span>Active projects</span>
@@ -174,7 +376,7 @@ function Dashboard() {
 
         <div className="stat-card success">
           <span className="stat-label">Completed</span>
-          <div className="stat-value">{stats?.completed_count || 0}</div>
+          <div className="stat-value">{displayStats?.completed_count || 0}</div>
           <div className="stat-change positive">
             <CheckCircle size={16} />
             <span>Live solutions</span>
@@ -183,7 +385,7 @@ function Dashboard() {
 
         <div className="stat-card warning">
           <span className="stat-label">In Progress</span>
-          <div className="stat-value">{stats?.in_progress_count || 0}</div>
+          <div className="stat-value">{displayStats?.in_progress_count || 0}</div>
           <div className="stat-change">
             <Clock size={16} />
             <span>Under development</span>
@@ -192,7 +394,7 @@ function Dashboard() {
 
         <div className="stat-card info">
           <span className="stat-label">New This Month</span>
-          <div className="stat-value">{stats?.new_initiatives_count || 0}</div>
+          <div className="stat-value">{displayStats?.new_initiatives_count || 0}</div>
           <div className="stat-change positive">
             <Plus size={16} />
             <span>Recently added</span>
@@ -201,7 +403,7 @@ function Dashboard() {
       </div>
 
       {/* Pinned Initiatives */}
-      {stats?.pinned_initiatives && stats.pinned_initiatives.length > 0 && (
+      {displayStats?.pinned_initiatives && displayStats.pinned_initiatives.length > 0 && (
         <div className="card" style={{ marginBottom: '20px', borderLeft: '4px solid #3b82f6' }}>
           <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Pin size={20} style={{ color: '#3b82f6' }} />
@@ -221,7 +423,7 @@ function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {stats.pinned_initiatives.map(initiative => (
+                {displayStats.pinned_initiatives.map(initiative => (
                   <tr key={initiative.id}>
                     <td>
                       <strong>{initiative.use_case_name}</strong>
@@ -304,7 +506,7 @@ function Dashboard() {
       )}
 
       {/* In-Progress Initiatives Table */}
-      {stats?.in_progress_initiatives && stats.in_progress_initiatives.length > 0 && (
+      {displayStats?.in_progress_initiatives && displayStats.in_progress_initiatives.length > 0 && (
         <div className="card" style={{ marginBottom: '20px' }}>
           <div className="card-header">
             <h2>In-Progress Initiatives</h2>
@@ -321,7 +523,7 @@ function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {stats.in_progress_initiatives.map(initiative => (
+                {displayStats.in_progress_initiatives.map(initiative => (
                   <tr key={initiative.id}>
                     <td><strong>{initiative.use_case_name}</strong></td>
                     <td style={{ fontSize: '13px' }}>{initiative.departments || '-'}</td>
@@ -375,9 +577,9 @@ function Dashboard() {
           <div className="card-header">
             <h2>Initiatives by Department</h2>
           </div>
-          {stats?.by_department && stats.by_department.length > 0 ? (
+          {displayStats?.by_department && displayStats.by_department.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={stats.by_department}>
+              <BarChart data={displayStats.by_department}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="department" />
                 <YAxis />
@@ -395,11 +597,11 @@ function Dashboard() {
           <div className="card-header">
             <h2>Initiatives by Benefit Category</h2>
           </div>
-          {stats?.by_benefit && stats.by_benefit.length > 0 ? (
+          {displayStats?.by_benefit && displayStats.by_benefit.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={stats.by_benefit}
+                  data={displayStats.by_benefit}
                   dataKey="count"
                   nameKey="benefit"
                   cx="50%"
@@ -407,7 +609,7 @@ function Dashboard() {
                   outerRadius={100}
                   label={(entry) => entry.benefit}
                 >
-                  {stats.by_benefit.map((entry, index) => (
+                  {displayStats.by_benefit.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -424,123 +626,10 @@ function Dashboard() {
       {trends && trends.length > 0 && getAllMetricNames().length > 0 && (
         <div className="card">
           <div className="card-header">
-            <h2>Monthly ROI Trends</h2>
+            <h2>Monthly ROI Trends {hasActiveFilters ? '(Filtered)' : ''}</h2>
             <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
-              Aggregated metrics across all initiatives - Click any chart to drill down
+              Aggregated metrics across {hasActiveFilters ? 'selected' : 'all'} initiatives - Click any chart to drill down
             </p>
-          </div>
-
-          {/* Filter Controls */}
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
-            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-              {/* Initiative Multiselect */}
-              <div style={{ flex: '1 1 300px', minWidth: '200px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', marginBottom: '6px', color: '#374151' }}>
-                  Filter by Initiative(s)
-                </label>
-                <div style={{
-                  position: 'relative',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  backgroundColor: 'white',
-                  minHeight: '38px',
-                  padding: '4px 8px',
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '4px',
-                  alignItems: 'center'
-                }}>
-                  {selectedInitiatives.length === 0 ? (
-                    <span style={{ color: '#9ca3af', fontSize: '14px' }}>All initiatives</span>
-                  ) : (
-                    selectedInitiatives.map(id => {
-                      const initiative = allInitiatives.find(i => i.id === id);
-                      return initiative ? (
-                        <span key={id} style={{
-                          backgroundColor: '#3b82f6',
-                          color: 'white',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}>
-                          {initiative.use_case_name}
-                          <X
-                            size={14}
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => handleInitiativeToggle(id)}
-                          />
-                        </span>
-                      ) : null;
-                    })
-                  )}
-                  <select
-                    value=""
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        handleInitiativeToggle(parseInt(e.target.value));
-                      }
-                    }}
-                    style={{
-                      border: 'none',
-                      outline: 'none',
-                      flex: 1,
-                      minWidth: '120px',
-                      fontSize: '14px',
-                      padding: '4px',
-                      backgroundColor: 'transparent'
-                    }}
-                  >
-                    <option value="">+ Add initiative</option>
-                    {allInitiatives
-                      .filter(i => !selectedInitiatives.includes(i.id))
-                      .map(i => (
-                        <option key={i.id} value={i.id}>{i.use_case_name}</option>
-                      ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Initiative Type Dropdown */}
-              <div style={{ flex: '0 1 200px', minWidth: '150px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', marginBottom: '6px', color: '#374151' }}>
-                  Filter by Type
-                </label>
-                <select
-                  value={selectedInitiativeType}
-                  onChange={(e) => setSelectedInitiativeType(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    border: '1px solid #d1d5db',
-                    fontSize: '14px',
-                    backgroundColor: 'white'
-                  }}
-                >
-                  <option value="">All Types</option>
-                  <option value="Internal AI">Internal AI</option>
-                  <option value="RPA">RPA</option>
-                  <option value="External AI">External AI</option>
-                </select>
-              </div>
-
-              {/* Clear Filters Button */}
-              {(selectedInitiatives.length > 0 || selectedInitiativeType) && (
-                <button
-                  onClick={() => {
-                    setSelectedInitiatives([]);
-                    setSelectedInitiativeType('');
-                  }}
-                  className="btn btn-secondary"
-                  style={{ marginTop: '20px' }}
-                >
-                  Clear Filters
-                </button>
-              )}
-            </div>
           </div>
 
           {/* Aggregate ROI Summary Cards */}
@@ -664,12 +753,12 @@ function Dashboard() {
       {/* All Initiatives - Paginated Table */}
       <div className="card">
         <div className="card-header">
-          <h2>All Initiatives ({allInitiatives.length})</h2>
+          <h2>All Initiatives ({filteredInitiatives.length}{hasActiveFilters ? ` of ${allInitiatives.length}` : ''})</h2>
           <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
-            Complete list of all initiatives with status and details
+            {hasActiveFilters ? 'Filtered list of initiatives' : 'Complete list of all initiatives with status and details'}
           </p>
         </div>
-        {allInitiatives.length > 0 ? (
+        {filteredInitiatives.length > 0 ? (
           <>
             <div className="table-container">
               <table>
