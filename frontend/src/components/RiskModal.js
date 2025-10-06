@@ -15,7 +15,9 @@ function RiskModal({ initiativeId, onClose }) {
     risk_title: '',
     risk_detail: '',
     frequency: '',
-    severity: ''
+    severity: '',
+    risk_mitigation: '',
+    controls: ''
   });
 
   useEffect(() => {
@@ -58,7 +60,7 @@ function RiskModal({ initiativeId, onClose }) {
       } else {
         await createRisk(initiativeId, formData);
       }
-      setFormData({ risk_title: '', risk_detail: '', frequency: '', severity: '' });
+      setFormData({ risk_title: '', risk_detail: '', frequency: '', severity: '', risk_mitigation: '', controls: '' });
       setShowForm(false);
       setEditingRisk(null);
       loadRisks();
@@ -74,7 +76,9 @@ function RiskModal({ initiativeId, onClose }) {
       risk_title: risk.risk_title,
       risk_detail: risk.risk_detail,
       frequency: risk.frequency,
-      severity: risk.severity
+      severity: risk.severity,
+      risk_mitigation: risk.risk_mitigation || '',
+      controls: risk.controls || ''
     });
     setShowForm(true);
   };
@@ -99,7 +103,7 @@ function RiskModal({ initiativeId, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px' }}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '1200px' }}>
         <div className="modal-header">
           <h2>Risk Assessment</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -134,7 +138,7 @@ function RiskModal({ initiativeId, onClose }) {
                 <input
                   type="text"
                   value={formData.risk_title}
-                  onChange={(e) => setFormData({ ...formData, risk_title: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, risk_title: e.target.value }))}
                   required
                   placeholder="e.g., Data quality issues"
                 />
@@ -143,7 +147,7 @@ function RiskModal({ initiativeId, onClose }) {
                 <label>Risk Detail</label>
                 <textarea
                   value={formData.risk_detail}
-                  onChange={(e) => setFormData({ ...formData, risk_detail: e.target.value })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, risk_detail: e.target.value }))}
                   rows="3"
                   placeholder="Describe the risk in detail..."
                 />
@@ -153,7 +157,7 @@ function RiskModal({ initiativeId, onClose }) {
                   <label>Frequency *</label>
                   <select
                     value={formData.frequency}
-                    onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, frequency: e.target.value }))}
                     required
                   >
                     <option value="">Select frequency</option>
@@ -166,7 +170,7 @@ function RiskModal({ initiativeId, onClose }) {
                   <label>Severity *</label>
                   <select
                     value={formData.severity}
-                    onChange={(e) => setFormData({ ...formData, severity: e.target.value })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, severity: e.target.value }))}
                     required
                   >
                     <option value="">Select severity</option>
@@ -175,6 +179,24 @@ function RiskModal({ initiativeId, onClose }) {
                     ))}
                   </select>
                 </div>
+              </div>
+              <div className="form-group">
+                <label>Risk Mitigation</label>
+                <textarea
+                  value={formData.risk_mitigation}
+                  onChange={(e) => setFormData(prev => ({ ...prev, risk_mitigation: e.target.value }))}
+                  rows="3"
+                  placeholder="Describe mitigation strategies to reduce or manage this risk..."
+                />
+              </div>
+              <div className="form-group">
+                <label>Controls</label>
+                <textarea
+                  value={formData.controls}
+                  onChange={(e) => setFormData(prev => ({ ...prev, controls: e.target.value }))}
+                  rows="3"
+                  placeholder="Describe control measures in place to prevent or detect this risk..."
+                />
               </div>
               <button type="submit" className="btn btn-success" style={{ marginTop: '12px' }}>
                 <Save size={18} />
@@ -199,6 +221,9 @@ function RiskModal({ initiativeId, onClose }) {
                     <th>Detail</th>
                     <th>Frequency</th>
                     <th>Severity</th>
+                    <th>Overall Risk</th>
+                    <th>Mitigation</th>
+                    <th>Controls</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -206,7 +231,7 @@ function RiskModal({ initiativeId, onClose }) {
                   {risks.map(risk => (
                     <tr key={risk.id}>
                       <td><strong>{risk.risk_title}</strong></td>
-                      <td style={{ fontSize: '13px', maxWidth: '300px' }}>
+                      <td style={{ fontSize: '13px', maxWidth: '200px' }}>
                         {risk.risk_detail || '-'}
                       </td>
                       <td>
@@ -218,6 +243,21 @@ function RiskModal({ initiativeId, onClose }) {
                         <span className={`badge ${getRiskBadgeClass(risk.severity)}`}>
                           {risk.severity}
                         </span>
+                      </td>
+                      <td>
+                        <span className={`badge ${getRiskBadgeClass(risk.overall_risk)}`}>
+                          {risk.overall_risk || 'Low'}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '13px', maxWidth: '200px' }}>
+                        {risk.risk_mitigation ? (
+                          <span>{risk.risk_mitigation.substring(0, 80)}{risk.risk_mitigation.length > 80 ? '...' : ''}</span>
+                        ) : '-'}
+                      </td>
+                      <td style={{ fontSize: '13px', maxWidth: '200px' }}>
+                        {risk.controls ? (
+                          <span>{risk.controls.substring(0, 80)}{risk.controls.length > 80 ? '...' : ''}</span>
+                        ) : '-'}
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '8px' }}>

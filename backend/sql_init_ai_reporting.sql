@@ -96,6 +96,9 @@ CREATE TABLE dbo.risks (
     risk_detail NVARCHAR(MAX),
     frequency NVARCHAR(50), -- High, Medium, Low
     severity NVARCHAR(50), -- High, Medium, Low
+    risk_mitigation NVARCHAR(MAX), -- Mitigation strategies
+    controls NVARCHAR(MAX), -- Control measures
+    overall_risk NVARCHAR(50), -- High, Medium, Low (calculated)
     created_at DATETIME DEFAULT GETDATE(),
     created_by_name NVARCHAR(255),
     created_by_email NVARCHAR(255),

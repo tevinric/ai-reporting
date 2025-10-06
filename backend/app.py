@@ -1372,6 +1372,45 @@ def get_business_owner_suggestions():
 
 # ==================== Risks Management ====================
 
+def calculate_overall_risk(frequency, severity):
+    """
+    Calculate overall risk based on frequency and severity using a risk matrix.
+
+    Risk Matrix:
+                 Severity
+               Low      Medium    High
+    Freq Low    Low      Low      Medium
+         Med    Low      Medium   High
+         High   Medium   High     High
+
+    Args:
+        frequency: Risk frequency (Low, Medium, High)
+        severity: Risk severity (Low, Medium, High)
+
+    Returns:
+        Overall risk level (Low, Medium, High)
+    """
+    if not frequency or not severity:
+        return 'Low'  # Default if values not provided
+
+    freq = frequency.strip()
+    sev = severity.strip()
+
+    # Risk matrix mapping
+    risk_matrix = {
+        ('Low', 'Low'): 'Low',
+        ('Low', 'Medium'): 'Low',
+        ('Low', 'High'): 'Medium',
+        ('Medium', 'Low'): 'Low',
+        ('Medium', 'Medium'): 'Medium',
+        ('Medium', 'High'): 'High',
+        ('High', 'Low'): 'Medium',
+        ('High', 'Medium'): 'High',
+        ('High', 'High'): 'High'
+    }
+
+    return risk_matrix.get((freq, sev), 'Low')
+
 @app.route('/api/initiatives/<int:initiative_id>/risks', methods=['GET'])
 def get_initiative_risks(initiative_id):
     """Get all risks for an initiative"""
@@ -1401,17 +1440,26 @@ def create_risk(initiative_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Calculate overall risk based on frequency and severity
+        frequency = data.get('frequency', '')
+        severity = data.get('severity', '')
+        overall_risk = calculate_overall_risk(frequency, severity)
+
         cursor.execute("""
             INSERT INTO risks (
                 initiative_id, risk_title, risk_detail, frequency, severity,
+                risk_mitigation, controls, overall_risk,
                 created_by_name, created_by_email, modified_by_name, modified_by_email
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             initiative_id,
             data.get('risk_title'),
             data.get('risk_detail'),
-            data.get('frequency'),
-            data.get('severity'),
+            frequency,
+            severity,
+            data.get('risk_mitigation', ''),
+            data.get('controls', ''),
+            overall_risk,
             DEFAULT_USER['name'],
             DEFAULT_USER['email'],
             DEFAULT_USER['name'],
@@ -1437,12 +1485,20 @@ def update_risk(risk_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Calculate overall risk based on frequency and severity
+        frequency = data.get('frequency', '')
+        severity = data.get('severity', '')
+        overall_risk = calculate_overall_risk(frequency, severity)
+
         cursor.execute("""
             UPDATE risks SET
                 risk_title = ?,
                 risk_detail = ?,
                 frequency = ?,
                 severity = ?,
+                risk_mitigation = ?,
+                controls = ?,
+                overall_risk = ?,
                 modified_at = GETDATE(),
                 modified_by_name = ?,
                 modified_by_email = ?
@@ -1450,8 +1506,11 @@ def update_risk(risk_id):
         """, (
             data.get('risk_title'),
             data.get('risk_detail'),
-            data.get('frequency'),
-            data.get('severity'),
+            frequency,
+            severity,
+            data.get('risk_mitigation', ''),
+            data.get('controls', ''),
+            overall_risk,
             DEFAULT_USER['name'],
             DEFAULT_USER['email'],
             risk_id
