@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp, TrendingDown, FolderKanban, CheckCircle, Clock, Lightbulb, Plus, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getDashboardStats, getMonthlyTrends, getInitiatives } from '../services/api';
+import { TrendingUp, TrendingDown, FolderKanban, CheckCircle, Clock, Lightbulb, Plus, Eye, ChevronLeft, ChevronRight, Pin, X } from 'lucide-react';
+import { getDashboardStats, getMonthlyTrends, getInitiatives, pinInitiative, unpinInitiative } from '../services/api';
 import axios from 'axios';
 import { API_ENDPOINTS } from '../config/api';
 
@@ -19,9 +19,17 @@ function Dashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // Filter states
+  const [selectedInitiatives, setSelectedInitiatives] = useState([]);
+  const [selectedInitiativeType, setSelectedInitiativeType] = useState('');
+
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  useEffect(() => {
+    loadTrendsWithFilters();
+  }, [selectedInitiatives, selectedInitiativeType]);
 
   const loadDashboardData = async () => {
     try {
@@ -40,6 +48,26 @@ function Dashboard() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadTrendsWithFilters = async () => {
+    try {
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (selectedInitiatives.length > 0) {
+        params.append('initiative_ids', selectedInitiatives.join(','));
+      }
+      if (selectedInitiativeType) {
+        params.append('initiative_type', selectedInitiativeType);
+      }
+
+      const queryString = params.toString();
+      const url = `${API_ENDPOINTS.MONTHLY_TRENDS}${queryString ? `?${queryString}` : ''}`;
+      const response = await axios.get(url);
+      setTrends(response.data);
+    } catch (err) {
+      console.error('Failed to load filtered trends', err);
     }
   };
 
@@ -63,6 +91,31 @@ function Dashboard() {
 
   const closeDrilldown = () => {
     setDrilldownData(null);
+  };
+
+  const handlePinToggle = async (initiativeId, isPinned) => {
+    try {
+      if (isPinned) {
+        await unpinInitiative(initiativeId);
+      } else {
+        await pinInitiative(initiativeId);
+      }
+      // Reload dashboard to get updated pinned list
+      loadDashboardData();
+    } catch (err) {
+      console.error('Failed to toggle pin', err);
+      alert('Failed to update pin status');
+    }
+  };
+
+  const handleInitiativeToggle = (initiativeId) => {
+    setSelectedInitiatives(prev => {
+      if (prev.includes(initiativeId)) {
+        return prev.filter(id => id !== initiativeId);
+      } else {
+        return [...prev, initiativeId];
+      }
+    });
   };
 
   // Extract all unique metric names from trends
@@ -146,6 +199,108 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Pinned Initiatives */}
+      {stats?.pinned_initiatives && stats.pinned_initiatives.length > 0 && (
+        <div className="card" style={{ marginBottom: '20px', borderLeft: '4px solid #3b82f6' }}>
+          <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Pin size={20} style={{ color: '#3b82f6' }} />
+            <h2>Pinned Initiatives</h2>
+          </div>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Initiative</th>
+                  <th>Type</th>
+                  <th>Departments</th>
+                  <th>Status</th>
+                  <th>Health</th>
+                  <th>Progress</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.pinned_initiatives.map(initiative => (
+                  <tr key={initiative.id}>
+                    <td>
+                      <strong>{initiative.use_case_name}</strong>
+                      <br />
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>
+                        {initiative.description?.substring(0, 60)}
+                        {initiative.description?.length > 60 ? '...' : ''}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: '13px' }}>{initiative.initiative_type || 'Internal AI'}</td>
+                    <td style={{ fontSize: '13px' }}>{initiative.departments || '-'}</td>
+                    <td>
+                      <span className={`badge ${
+                        initiative.status === 'Live (Complete)' ? 'badge-success' :
+                        initiative.status === 'In Progress' ? 'badge-warning' : 'badge-info'
+                      }`}>
+                        {initiative.status}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          backgroundColor: initiative.health_status === 'Green' ? '#10b981' :
+                                         initiative.health_status === 'Amber' ? '#f59e0b' : '#ef4444'
+                        }}></div>
+                        <span style={{ fontSize: '13px' }}>{initiative.health_status || 'Green'}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{
+                          flex: 1,
+                          height: '8px',
+                          backgroundColor: '#e5e7eb',
+                          borderRadius: '4px',
+                          overflow: 'hidden',
+                          minWidth: '80px'
+                        }}>
+                          <div style={{
+                            width: `${initiative.percentage_complete || 0}%`,
+                            height: '100%',
+                            backgroundColor: '#3b82f6',
+                            transition: 'width 0.3s'
+                          }}></div>
+                        </div>
+                        <span style={{ fontSize: '13px', color: '#64748b', minWidth: '35px' }}>
+                          {initiative.percentage_complete || 0}%
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => navigate(`/initiatives/${initiative.id}`)}
+                          className="btn btn-sm btn-secondary"
+                          title="View details"
+                        >
+                          <Eye size={14} />
+                        </button>
+                        <button
+                          onClick={() => handlePinToggle(initiative.id, true)}
+                          className="btn btn-sm btn-secondary"
+                          title="Unpin"
+                          style={{ color: '#3b82f6' }}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* In-Progress Initiatives Table */}
       {stats?.in_progress_initiatives && stats.in_progress_initiatives.length > 0 && (
@@ -271,6 +426,119 @@ function Dashboard() {
               Aggregated metrics across all initiatives - Click any chart to drill down
             </p>
           </div>
+
+          {/* Filter Controls */}
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* Initiative Multiselect */}
+              <div style={{ flex: '1 1 300px', minWidth: '200px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', marginBottom: '6px', color: '#374151' }}>
+                  Filter by Initiative(s)
+                </label>
+                <div style={{
+                  position: 'relative',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  backgroundColor: 'white',
+                  minHeight: '38px',
+                  padding: '4px 8px',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '4px',
+                  alignItems: 'center'
+                }}>
+                  {selectedInitiatives.length === 0 ? (
+                    <span style={{ color: '#9ca3af', fontSize: '14px' }}>All initiatives</span>
+                  ) : (
+                    selectedInitiatives.map(id => {
+                      const initiative = allInitiatives.find(i => i.id === id);
+                      return initiative ? (
+                        <span key={id} style={{
+                          backgroundColor: '#3b82f6',
+                          color: 'white',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          {initiative.use_case_name}
+                          <X
+                            size={14}
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => handleInitiativeToggle(id)}
+                          />
+                        </span>
+                      ) : null;
+                    })
+                  )}
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleInitiativeToggle(parseInt(e.target.value));
+                      }
+                    }}
+                    style={{
+                      border: 'none',
+                      outline: 'none',
+                      flex: 1,
+                      minWidth: '120px',
+                      fontSize: '14px',
+                      padding: '4px',
+                      backgroundColor: 'transparent'
+                    }}
+                  >
+                    <option value="">+ Add initiative</option>
+                    {allInitiatives
+                      .filter(i => !selectedInitiatives.includes(i.id))
+                      .map(i => (
+                        <option key={i.id} value={i.id}>{i.use_case_name}</option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Initiative Type Dropdown */}
+              <div style={{ flex: '0 1 200px', minWidth: '150px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', marginBottom: '6px', color: '#374151' }}>
+                  Filter by Type
+                </label>
+                <select
+                  value={selectedInitiativeType}
+                  onChange={(e) => setSelectedInitiativeType(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '14px',
+                    backgroundColor: 'white'
+                  }}
+                >
+                  <option value="">All Types</option>
+                  <option value="Internal AI">Internal AI</option>
+                  <option value="RPA">RPA</option>
+                  <option value="External AI">External AI</option>
+                </select>
+              </div>
+
+              {/* Clear Filters Button */}
+              {(selectedInitiatives.length > 0 || selectedInitiativeType) && (
+                <button
+                  onClick={() => {
+                    setSelectedInitiatives([]);
+                    setSelectedInitiativeType('');
+                  }}
+                  className="btn btn-secondary"
+                  style={{ marginTop: '20px' }}
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', padding: '20px' }}>
             {getAllMetricNames().map((metricName, index) => {
               // Filter trends to only periods where this metric exists
@@ -371,6 +639,7 @@ function Dashboard() {
                 <thead>
                   <tr>
                     <th>Initiative Name</th>
+                    <th>Type</th>
                     <th>Status</th>
                     <th>Health</th>
                     <th>Departments</th>
@@ -390,6 +659,7 @@ function Dashboard() {
                           </div>
                         )}
                       </td>
+                      <td style={{ fontSize: '13px' }}>{initiative.initiative_type || 'Internal AI'}</td>
                       <td>
                         <span className={`badge ${
                           initiative.status === 'Live (Complete)' ? 'badge-success' :
@@ -425,13 +695,24 @@ function Dashboard() {
                         </div>
                       </td>
                       <td>
-                        <button
-                          onClick={() => navigate(`/initiatives/${initiative.id}`)}
-                          className="btn btn-secondary"
-                          style={{ padding: '6px 12px' }}
-                        >
-                          <Eye size={16} />
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => navigate(`/initiatives/${initiative.id}`)}
+                            className="btn btn-secondary"
+                            style={{ padding: '6px 12px' }}
+                            title="View details"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button
+                            onClick={() => handlePinToggle(initiative.id, initiative.is_pinned)}
+                            className="btn btn-secondary"
+                            style={{ padding: '6px 12px', color: initiative.is_pinned ? '#3b82f6' : '#64748b' }}
+                            title={initiative.is_pinned ? 'Unpin from dashboard' : 'Pin to dashboard'}
+                          >
+                            <Pin size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

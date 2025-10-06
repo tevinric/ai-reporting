@@ -27,6 +27,7 @@ function InitiativeForm() {
   const [priorityOptions, setPriorityOptions] = useState([]);
   const [riskOptions, setRiskOptions] = useState([]);
   const [healthStatusOptions, setHealthStatusOptions] = useState([]);
+  const [initiativeTypeOptions, setInitiativeTypeOptions] = useState([]);
   const [processOwnerSuggestions, setProcessOwnerSuggestions] = useState([]);
   const [businessOwnerSuggestions, setBusinessOwnerSuggestions] = useState([]);
 
@@ -50,6 +51,9 @@ function InitiativeForm() {
     budget_allocated: '',
     budget_spent: '',
     health_status: 'Green',
+    initiative_type: 'Internal AI',
+    is_featured: false,
+    featured_month: '',
     departments: []
   });
 
@@ -63,14 +67,15 @@ function InitiativeForm() {
 
   const loadFieldOptions = async () => {
     try {
-      const [benefits, objectives, statuses, departments, priorities, risks, healthStatuses] = await Promise.all([
+      const [benefits, objectives, statuses, departments, priorities, risks, healthStatuses, initiativeTypes] = await Promise.all([
         getFieldOptions('benefit'),
         getFieldOptions('strategic_objective'),
         getFieldOptions('status'),
         getFieldOptions('department'),
         getFieldOptions('priority'),
         getFieldOptions('risk_level'),
-        getFieldOptions('health_status')
+        getFieldOptions('health_status'),
+        getFieldOptions('initiative_type')
       ]);
 
       setBenefitOptions(benefits.data);
@@ -80,6 +85,7 @@ function InitiativeForm() {
       setPriorityOptions(priorities.data);
       setRiskOptions(risks.data);
       setHealthStatusOptions(healthStatuses.data);
+      setInitiativeTypeOptions(initiativeTypes.data);
     } catch (err) {
       console.error('Failed to load field options', err);
     }
@@ -234,7 +240,7 @@ function InitiativeForm() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px' }}>
             <div className="form-group">
               <label>Status *</label>
               <select
@@ -244,6 +250,20 @@ function InitiativeForm() {
                 required
               >
                 {statusOptions.map(opt => (
+                  <option key={opt.id} value={opt.option_value}>{opt.option_value}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Initiative Type *</label>
+              <select
+                name="initiative_type"
+                value={formData.initiative_type}
+                onChange={handleChange}
+                required
+              >
+                {initiativeTypeOptions.map(opt => (
                   <option key={opt.id} value={opt.option_value}>{opt.option_value}</option>
                 ))}
               </select>
@@ -277,6 +297,34 @@ function InitiativeForm() {
                 Green: On track | Amber: At risk | Red: Behind schedule
               </small>
             </div>
+          </div>
+
+          <div className="form-group">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="checkbox"
+                name="is_featured"
+                checked={formData.is_featured}
+                onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
+                style={{ width: 'auto', margin: 0 }}
+              />
+              Mark as Featured Solution
+            </label>
+            <small style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+              Featured solutions will be highlighted on the dashboard
+            </small>
+            {formData.is_featured && (
+              <div style={{ marginTop: '8px' }}>
+                <label>Featured Month</label>
+                <input
+                  type="month"
+                  name="featured_month"
+                  value={formData.featured_month}
+                  onChange={handleChange}
+                  placeholder="YYYY-MM"
+                />
+              </div>
+            )}
           </div>
 
           <div className="form-group">

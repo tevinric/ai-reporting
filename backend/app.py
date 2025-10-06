@@ -127,6 +127,27 @@ def get_dashboard_stats():
         benefits = [dict_from_row(cursor, row) for row in cursor.fetchall()]
         stats['by_benefit'] = benefits
 
+        # Get pinned initiatives
+        cursor.execute("""
+            SELECT
+                i.id,
+                i.use_case_name,
+                i.description,
+                i.percentage_complete,
+                i.health_status,
+                i.status,
+                i.initiative_type,
+                i.pinned_at,
+                STRING_AGG(id_dept.department, ', ') as departments
+            FROM initiatives i
+            LEFT JOIN initiative_departments id_dept ON i.id = id_dept.initiative_id
+            WHERE i.is_pinned = 1
+            GROUP BY i.id, i.use_case_name, i.description, i.percentage_complete, i.health_status, i.status, i.initiative_type, i.pinned_at
+            ORDER BY i.pinned_at DESC
+        """)
+        pinned = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+        stats['pinned_initiatives'] = pinned
+
         conn.close()
         return jsonify(stats)
     except Exception as e:
@@ -135,22 +156,49 @@ def get_dashboard_stats():
 
 @app.route('/api/dashboard/monthly-trends', methods=['GET'])
 def get_monthly_trends():
-    """Get monthly trends aggregating all metrics across all initiatives"""
+    """Get monthly trends aggregating all metrics across all initiatives with optional filters"""
     try:
         import json
+        from flask import request
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Get all monthly metrics with additional_metrics JSON
-        cursor.execute("""
-            SELECT
-                metric_period,
-                initiative_id,
-                additional_metrics
-            FROM monthly_metrics
-            ORDER BY metric_period
-        """)
+        # Get filter parameters
+        initiative_ids = request.args.get('initiative_ids')  # Comma-separated IDs
+        initiative_type = request.args.get('initiative_type')  # Single type filter
 
+        # Build WHERE clause based on filters
+        where_clauses = []
+        params = []
+
+        if initiative_ids:
+            id_list = [int(id.strip()) for id in initiative_ids.split(',') if id.strip()]
+            if id_list:
+                placeholders = ','.join(['?' for _ in id_list])
+                where_clauses.append(f"mm.initiative_id IN ({placeholders})")
+                params.extend(id_list)
+
+        if initiative_type:
+            where_clauses.append("i.initiative_type = ?")
+            params.append(initiative_type)
+
+        where_sql = ""
+        if where_clauses:
+            where_sql = "WHERE " + " AND ".join(where_clauses)
+
+        # Get all monthly metrics with additional_metrics JSON
+        query = f"""
+            SELECT
+                mm.metric_period,
+                mm.initiative_id,
+                mm.additional_metrics
+            FROM monthly_metrics mm
+            JOIN initiatives i ON mm.initiative_id = i.id
+            {where_sql}
+            ORDER BY mm.metric_period
+        """
+
+        cursor.execute(query, params)
         rows = cursor.fetchall()
 
         # Aggregate metrics by period
@@ -409,9 +457,9 @@ def create_initiative():
                 use_case_name, description, benefit, strategic_objective, status,
                 percentage_complete, process_owner, business_owner, start_date,
                 expected_completion_date, priority, risk_level, technology_stack,
-                team_size, budget_allocated, health_status, created_by_name, created_by_email,
+                team_size, budget_allocated, health_status, initiative_type, created_by_name, created_by_email,
                 modified_by_name, modified_by_email
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data.get('use_case_name'),
             data.get('description'),
@@ -429,6 +477,7 @@ def create_initiative():
             data.get('team_size'),
             data.get('budget_allocated'),
             data.get('health_status', 'Green'),
+            data.get('initiative_type', 'Internal AI'),
             DEFAULT_USER['name'],
             DEFAULT_USER['email'],
             DEFAULT_USER['name'],
@@ -484,6 +533,7 @@ def update_initiative(initiative_id):
                 budget_allocated = ?,
                 budget_spent = ?,
                 health_status = ?,
+                initiative_type = ?,
                 is_featured = ?,
                 featured_month = ?,
                 modified_at = GETDATE(),
@@ -509,6 +559,7 @@ def update_initiative(initiative_id):
             data.get('budget_allocated'),
             data.get('budget_spent'),
             data.get('health_status'),
+            data.get('initiative_type'),
             data.get('is_featured', 0),
             data.get('featured_month'),
             DEFAULT_USER['name'],
@@ -548,6 +599,48 @@ def delete_initiative(initiative_id):
         return jsonify({'message': 'Initiative deleted successfully'})
     except Exception as e:
         logger.error(f"Error deleting initiative: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/initiatives/<int:initiative_id>/pin', methods=['POST'])
+def pin_initiative(initiative_id):
+    """Pin an initiative to the dashboard"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE initiatives
+            SET is_pinned = 1, pinned_at = GETDATE()
+            WHERE id = ?
+        """, initiative_id)
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Initiative pinned successfully'})
+    except Exception as e:
+        logger.error(f"Error pinning initiative: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/initiatives/<int:initiative_id>/unpin', methods=['POST'])
+def unpin_initiative(initiative_id):
+    """Unpin an initiative from the dashboard"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE initiatives
+            SET is_pinned = 0, pinned_at = NULL
+            WHERE id = ?
+        """, initiative_id)
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Initiative unpinned successfully'})
+    except Exception as e:
+        logger.error(f"Error unpinning initiative: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # ==================== Monthly Metrics ====================

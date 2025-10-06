@@ -169,6 +169,7 @@ function Initiatives() {
               <thead>
                 <tr>
                   <th>Use Case Name</th>
+                  <th>Type</th>
                   <th>Status</th>
                   <th>Health</th>
                   <th>Departments</th>
@@ -187,6 +188,11 @@ function Initiatives() {
                       <span style={{ fontSize: '12px', color: '#64748b' }}>
                         {initiative.description?.substring(0, 60)}
                         {initiative.description?.length > 60 ? '...' : ''}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '13px', color: '#64748b' }}>
+                        {initiative.initiative_type || 'Internal AI'}
                       </span>
                     </td>
                     <td>{getStatusBadge(initiative.status)}</td>

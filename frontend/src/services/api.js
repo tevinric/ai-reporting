@@ -17,6 +17,8 @@ export const getInitiativeById = (id) => api.get(API_ENDPOINTS.INITIATIVE_BY_ID(
 export const createInitiative = (data) => api.post(API_ENDPOINTS.INITIATIVES, data);
 export const updateInitiative = (id, data) => api.put(API_ENDPOINTS.INITIATIVE_BY_ID(id), data);
 export const deleteInitiative = (id) => api.delete(API_ENDPOINTS.INITIATIVE_BY_ID(id));
+export const pinInitiative = (id) => api.post(`${API_ENDPOINTS.INITIATIVE_BY_ID(id)}/pin`);
+export const unpinInitiative = (id) => api.post(`${API_ENDPOINTS.INITIATIVE_BY_ID(id)}/unpin`);
 
 // Metrics
 export const getInitiativeMetrics = (id) => api.get(API_ENDPOINTS.INITIATIVE_METRICS(id));

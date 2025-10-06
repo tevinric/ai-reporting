@@ -63,6 +63,9 @@ CREATE TABLE dbo.initiatives (
     budget_allocated DECIMAL(18,2),
     budget_spent DECIMAL(18,2),
     health_status NVARCHAR(50) DEFAULT 'Green', -- Green, Amber, Red
+    initiative_type NVARCHAR(50) DEFAULT 'Internal AI', -- Internal AI, RPA, External AI
+    is_pinned BIT DEFAULT 0, -- Pinned to dashboard
+    pinned_at DATETIME, -- When it was pinned
 
     -- Audit fields
     created_at DATETIME DEFAULT GETDATE(),
@@ -204,7 +207,12 @@ INSERT INTO dbo.field_options (field_name, option_value, display_order) VALUES
 -- Risk Severity
 ('severity', 'High', 1),
 ('severity', 'Medium', 2),
-('severity', 'Low', 3);
+('severity', 'Low', 3),
+
+-- Initiative Type
+('initiative_type', 'Internal AI', 1),
+('initiative_type', 'RPA', 2),
+('initiative_type', 'External AI', 3);
 
 -- Insert default custom metrics
 INSERT INTO dbo.custom_metrics (metric_name, metric_description, metric_type, unit_of_measure) VALUES
