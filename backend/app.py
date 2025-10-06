@@ -400,8 +400,17 @@ def get_initiatives():
         cursor.execute(query, params)
         initiatives = [dict_from_row(cursor, row) for row in cursor.fetchall()]
 
-        # Get departments for each initiative
+        # Get departments for each initiative and trim string fields
+        string_fields = ['use_case_name', 'description', 'benefit', 'strategic_objective', 'status',
+                        'process_owner', 'business_owner', 'priority', 'risk_level', 'technology_stack',
+                        'health_status', 'initiative_type']
         for initiative in initiatives:
+            # Trim string fields
+            for field in string_fields:
+                if initiative.get(field) and isinstance(initiative[field], str):
+                    initiative[field] = initiative[field].strip()
+
+            # Get departments
             cursor.execute("""
                 SELECT department FROM initiative_departments
                 WHERE initiative_id = ?
@@ -429,6 +438,14 @@ def get_initiative(initiative_id):
             return jsonify({'error': 'Initiative not found'}), 404
 
         initiative = dict_from_row(cursor, row)
+
+        # Trim string fields to remove any whitespace
+        string_fields = ['use_case_name', 'description', 'benefit', 'strategic_objective', 'status',
+                        'process_owner', 'business_owner', 'priority', 'risk_level', 'technology_stack',
+                        'health_status', 'initiative_type']
+        for field in string_fields:
+            if initiative.get(field) and isinstance(initiative[field], str):
+                initiative[field] = initiative[field].strip()
 
         # Get departments
         cursor.execute("""
@@ -541,25 +558,25 @@ def update_initiative(initiative_id):
                 modified_by_email = ?
             WHERE id = ?
         """, (
-            data.get('use_case_name'),
-            data.get('description'),
-            data.get('benefit'),
-            data.get('strategic_objective'),
-            data.get('status'),
+            data.get('use_case_name', '').strip() if data.get('use_case_name') else None,
+            data.get('description', '').strip() if data.get('description') else None,
+            data.get('benefit', '').strip() if data.get('benefit') else None,
+            data.get('strategic_objective', '').strip() if data.get('strategic_objective') else None,
+            data.get('status', '').strip() if data.get('status') else None,
             data.get('percentage_complete'),
-            data.get('process_owner'),
-            data.get('business_owner'),
+            data.get('process_owner', '').strip() if data.get('process_owner') else None,
+            data.get('business_owner', '').strip() if data.get('business_owner') else None,
             convert_to_date(data.get('start_date')),
             convert_to_date(data.get('expected_completion_date')),
             convert_to_date(data.get('actual_completion_date')),
-            data.get('priority'),
-            data.get('risk_level'),
-            data.get('technology_stack'),
+            data.get('priority', '').strip() if data.get('priority') else None,
+            data.get('risk_level', '').strip() if data.get('risk_level') else None,
+            data.get('technology_stack', '').strip() if data.get('technology_stack') else None,
             data.get('team_size'),
             data.get('budget_allocated'),
             data.get('budget_spent'),
-            data.get('health_status'),
-            data.get('initiative_type'),
+            data.get('health_status', '').strip() if data.get('health_status') else 'Green',
+            data.get('initiative_type', '').strip() if data.get('initiative_type') else 'Internal AI',
             data.get('is_featured', 0),
             convert_to_date(data.get('featured_month')),
             DEFAULT_USER['name'],

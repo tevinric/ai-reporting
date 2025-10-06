@@ -114,8 +114,33 @@ function InitiativeForm() {
       if (data.start_date) data.start_date = data.start_date.split('T')[0];
       if (data.expected_completion_date) data.expected_completion_date = data.expected_completion_date.split('T')[0];
       if (data.actual_completion_date) data.actual_completion_date = data.actual_completion_date.split('T')[0];
+      if (data.featured_month) data.featured_month = data.featured_month.split('T')[0].substring(0, 7); // Format to YYYY-MM
 
-      setFormData(data);
+      // Ensure all fields exist with defaults
+      setFormData({
+        use_case_name: data.use_case_name || '',
+        description: data.description || '',
+        benefit: data.benefit || '',
+        strategic_objective: data.strategic_objective || '',
+        status: data.status || 'Ideation',
+        percentage_complete: data.percentage_complete || 0,
+        process_owner: data.process_owner || '',
+        business_owner: data.business_owner || '',
+        start_date: data.start_date || '',
+        expected_completion_date: data.expected_completion_date || '',
+        actual_completion_date: data.actual_completion_date || '',
+        priority: data.priority || '',
+        risk_level: data.risk_level || '',
+        technology_stack: data.technology_stack || '',
+        team_size: data.team_size || '',
+        budget_allocated: data.budget_allocated || '',
+        budget_spent: data.budget_spent || '',
+        health_status: data.health_status || 'Green',
+        initiative_type: data.initiative_type || 'Internal AI',
+        is_featured: data.is_featured || false,
+        featured_month: data.featured_month || '',
+        departments: data.departments || []
+      });
     } catch (err) {
       setError('Failed to load initiative');
       console.error(err);
@@ -401,22 +426,24 @@ function InitiativeForm() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
             <div className="form-group">
-              <label>Start Date</label>
+              <label>Start Date *</label>
               <input
                 type="date"
                 name="start_date"
                 value={formData.start_date}
                 onChange={handleChange}
+                required
               />
             </div>
 
             <div className="form-group">
-              <label>Expected Completion Date</label>
+              <label>Expected Completion Date *</label>
               <input
                 type="date"
                 name="expected_completion_date"
                 value={formData.expected_completion_date}
                 onChange={handleChange}
+                required
               />
             </div>
 

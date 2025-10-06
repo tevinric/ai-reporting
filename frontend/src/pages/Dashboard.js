@@ -542,6 +542,40 @@ function Dashboard() {
               )}
             </div>
           </div>
+
+          {/* Aggregate ROI Summary Cards */}
+          {trends && trends.length > 0 && (
+            <div style={{ padding: '20px', borderBottom: '1px solid #e5e7eb' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px', color: '#1e293b' }}>
+                Aggregate ROI Metrics {selectedInitiatives.length > 0 || selectedInitiativeType ? '(Filtered)' : '(All Initiatives)'}
+              </h3>
+              <div className="stats-grid">
+                {getAllMetricNames().slice(0, 4).map((metricName, index) => {
+                  // Get the latest values
+                  const latestTrend = trends.filter(t => t[`${metricName}_total`] !== undefined).slice(-1)[0];
+                  if (!latestTrend) return null;
+
+                  const total = latestTrend[`${metricName}_total`] || 0;
+                  const avg = latestTrend[`${metricName}_avg`] || 0;
+                  const count = latestTrend[`${metricName}_count`] || 0;
+
+                  const cardColors = ['', 'success', 'warning', 'info'];
+
+                  return (
+                    <div key={metricName} className={`stat-card ${cardColors[index % cardColors.length]}`}>
+                      <span className="stat-label">{metricName}</span>
+                      <div className="stat-value">{total.toFixed(2)}</div>
+                      <div className="stat-change">
+                        <TrendingUp size={16} />
+                        <span>Avg: {avg.toFixed(2)} | {count} initiatives</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', padding: '20px' }}>
             {getAllMetricNames().map((metricName, index) => {
               // Filter trends to only periods where this metric exists
