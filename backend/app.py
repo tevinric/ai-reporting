@@ -135,30 +135,193 @@ def get_dashboard_stats():
 
 @app.route('/api/dashboard/monthly-trends', methods=['GET'])
 def get_monthly_trends():
-    """Get monthly trends for key metrics"""
+    """Get monthly trends aggregating all metrics across all initiatives"""
     try:
+        import json
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Get all monthly metrics with additional_metrics JSON
         cursor.execute("""
             SELECT
                 metric_period,
-                COUNT(DISTINCT initiative_id) as active_initiatives,
-                SUM(time_saved_hours) as total_time_saved,
-                SUM(cost_saved_rands) as total_cost_saved,
-                SUM(revenue_increase_rands) as total_revenue_increase,
-                AVG(customer_experience_score) as avg_cx_score
+                initiative_id,
+                additional_metrics
             FROM monthly_metrics
-            GROUP BY metric_period
-            ORDER BY metric_period DESC
+            ORDER BY metric_period
         """)
 
-        trends = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+        rows = cursor.fetchall()
+
+        # Aggregate metrics by period
+        period_aggregates = {}
+
+        for row in rows:
+            period = row[0]
+            initiative_id = row[1]
+            additional_metrics_json = row[2]
+
+            if period not in period_aggregates:
+                period_aggregates[period] = {
+                    'metric_period': period,
+                    'active_initiatives': set(),
+                    'metrics': {}
+                }
+
+            period_aggregates[period]['active_initiatives'].add(initiative_id)
+
+            # Parse and aggregate additional_metrics
+            if additional_metrics_json:
+                try:
+                    metrics = json.loads(additional_metrics_json)
+                    for metric_name, metric_data in metrics.items():
+                        if metric_name not in period_aggregates[period]['metrics']:
+                            period_aggregates[period]['metrics'][metric_name] = {
+                                'values': [],
+                                'total': 0,
+                                'count': 0,
+                                'avg': 0
+                            }
+
+                        try:
+                            value = float(metric_data.get('value', 0))
+                            period_aggregates[period]['metrics'][metric_name]['values'].append(value)
+                            period_aggregates[period]['metrics'][metric_name]['total'] += value
+                            period_aggregates[period]['metrics'][metric_name]['count'] += 1
+                        except (ValueError, TypeError):
+                            pass
+                except:
+                    pass
+
+        # Calculate averages and format output
+        trends = []
+        for period, data in sorted(period_aggregates.items()):
+            trend_point = {
+                'metric_period': period,
+                'active_initiatives': len(data['active_initiatives'])
+            }
+
+            # Add aggregated metrics
+            for metric_name, metric_data in data['metrics'].items():
+                if metric_data['count'] > 0:
+                    metric_data['avg'] = metric_data['total'] / metric_data['count']
+                    trend_point[f'{metric_name}_total'] = round(metric_data['total'], 2)
+                    trend_point[f'{metric_name}_avg'] = round(metric_data['avg'], 2)
+                    trend_point[f'{metric_name}_count'] = metric_data['count']
+
+            trends.append(trend_point)
 
         conn.close()
         return jsonify(trends)
     except Exception as e:
         logger.error(f"Error fetching monthly trends: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dashboard/period/<period>', methods=['GET'])
+def get_period_drilldown(period):
+    """Get all initiatives with metrics for a specific period"""
+    try:
+        import json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                i.id,
+                i.use_case_name,
+                i.status,
+                i.health_status,
+                i.percentage_complete,
+                mm.additional_metrics,
+                STRING_AGG(id_dept.department, ', ') as departments
+            FROM initiatives i
+            INNER JOIN monthly_metrics mm ON i.id = mm.initiative_id
+            LEFT JOIN initiative_departments id_dept ON i.id = id_dept.initiative_id
+            WHERE mm.metric_period = ?
+            GROUP BY i.id, i.use_case_name, i.status, i.health_status, i.percentage_complete, mm.additional_metrics
+            ORDER BY i.use_case_name
+        """, period)
+
+        initiatives = []
+        for row in cursor.fetchall():
+            initiative = {
+                'id': row[0],
+                'use_case_name': row[1],
+                'status': row[2],
+                'health_status': row[3],
+                'percentage_complete': row[4],
+                'departments': row[6],
+                'metrics': {}
+            }
+
+            # Parse additional_metrics
+            if row[5]:
+                try:
+                    initiative['metrics'] = json.loads(row[5])
+                except:
+                    initiative['metrics'] = {}
+
+            initiatives.append(initiative)
+
+        conn.close()
+        return jsonify({'period': period, 'initiatives': initiatives})
+    except Exception as e:
+        logger.error(f"Error fetching period drilldown: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dashboard/metric/<metric_name>', methods=['GET'])
+def get_metric_drilldown(metric_name):
+    """Get all initiatives tracking a specific metric across all periods"""
+    try:
+        import json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                i.id,
+                i.use_case_name,
+                mm.metric_period,
+                mm.additional_metrics,
+                STRING_AGG(id_dept.department, ', ') as departments
+            FROM initiatives i
+            INNER JOIN monthly_metrics mm ON i.id = mm.initiative_id
+            LEFT JOIN initiative_departments id_dept ON i.id = id_dept.initiative_id
+            WHERE mm.additional_metrics IS NOT NULL
+            GROUP BY i.id, i.use_case_name, mm.metric_period, mm.additional_metrics
+            ORDER BY mm.metric_period, i.use_case_name
+        """)
+
+        initiatives_by_period = {}
+        for row in cursor.fetchall():
+            initiative_id = row[0]
+            use_case_name = row[1]
+            period = row[2]
+            additional_metrics_json = row[3]
+            departments = row[4]
+
+            # Parse and check if this initiative has the metric
+            if additional_metrics_json:
+                try:
+                    metrics = json.loads(additional_metrics_json)
+                    if metric_name in metrics:
+                        if period not in initiatives_by_period:
+                            initiatives_by_period[period] = []
+
+                        initiatives_by_period[period].append({
+                            'id': initiative_id,
+                            'use_case_name': use_case_name,
+                            'departments': departments,
+                            'value': metrics[metric_name].get('value'),
+                            'comments': metrics[metric_name].get('comments')
+                        })
+                except:
+                    pass
+
+        conn.close()
+        return jsonify({'metric_name': metric_name, 'by_period': initiatives_by_period})
+    except Exception as e:
+        logger.error(f"Error fetching metric drilldown: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # ==================== Initiatives CRUD ====================

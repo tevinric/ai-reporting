@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp, TrendingDown, FolderKanban, CheckCircle, Clock, Lightbulb, Plus, Eye } from 'lucide-react';
-import { getDashboardStats, getMonthlyTrends } from '../services/api';
+import { TrendingUp, TrendingDown, FolderKanban, CheckCircle, Clock, Lightbulb, Plus, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getDashboardStats, getMonthlyTrends, getInitiatives } from '../services/api';
+import axios from 'axios';
+import { API_ENDPOINTS } from '../config/api';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#8b5cf6'];
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316'];
 
 function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [trends, setTrends] = useState([]);
+  const [allInitiatives, setAllInitiatives] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [drilldownData, setDrilldownData] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     loadDashboardData();
@@ -20,12 +26,14 @@ function Dashboard() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsResponse, trendsResponse] = await Promise.all([
+      const [statsResponse, trendsResponse, initiativesResponse] = await Promise.all([
         getDashboardStats(),
-        getMonthlyTrends()
+        getMonthlyTrends(),
+        getInitiatives()
       ]);
       setStats(statsResponse.data);
       setTrends(trendsResponse.data);
+      setAllInitiatives(initiativesResponse.data);
       setError(null);
     } catch (err) {
       setError('Failed to load dashboard data');
@@ -34,6 +42,56 @@ function Dashboard() {
       setLoading(false);
     }
   };
+
+  const handlePeriodClick = async (period) => {
+    try {
+      const response = await axios.get(`${API_ENDPOINTS.DASHBOARD_STATS}/period/${period}`);
+      setDrilldownData(response.data);
+    } catch (err) {
+      console.error('Failed to load drilldown data', err);
+    }
+  };
+
+  const handleMetricClick = async (metricName) => {
+    try {
+      const response = await axios.get(`${API_ENDPOINTS.DASHBOARD_STATS}/metric/${encodeURIComponent(metricName)}`);
+      setDrilldownData(response.data);
+    } catch (err) {
+      console.error('Failed to load metric drilldown', err);
+    }
+  };
+
+  const closeDrilldown = () => {
+    setDrilldownData(null);
+  };
+
+  // Extract all unique metric names from trends
+  const getAllMetricNames = () => {
+    const metricNames = new Set();
+    trends.forEach(trend => {
+      Object.keys(trend).forEach(key => {
+        if (key.endsWith('_total') || key.endsWith('_avg')) {
+          const metricName = key.replace(/_total$/, '').replace(/_avg$/, '');
+          metricNames.add(metricName);
+        }
+      });
+    });
+    return Array.from(metricNames).filter(name =>
+      name !== 'metric_period' && name !== 'active_initiatives'
+    );
+  };
+
+  // Get color for metric
+  const getColorForMetric = (index) => {
+    return COLORS[index % COLORS.length];
+  };
+
+  // Pagination
+  const totalPages = Math.ceil(allInitiatives.length / itemsPerPage);
+  const paginatedInitiatives = allInitiatives.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   if (loading) {
     return <div className="loading">Loading dashboard...</div>;
@@ -204,48 +262,341 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* Monthly Trends */}
-      {trends && trends.length > 0 && (
+      {/* Monthly ROI Trends - Aggregated Across All Projects */}
+      {trends && trends.length > 0 && getAllMetricNames().length > 0 && (
         <div className="card">
           <div className="card-header">
             <h2>Monthly ROI Trends</h2>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
+              Aggregated metrics across all initiatives - Click any chart to drill down
+            </p>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={trends}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="metric_period" />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
-              <Tooltip />
-              <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="total_time_saved" stroke="#3b82f6" name="Time Saved (hrs)" />
-              <Line yAxisId="right" type="monotone" dataKey="total_cost_saved" stroke="#10b981" name="Cost Saved (R)" />
-              <Line yAxisId="right" type="monotone" dataKey="total_revenue_increase" stroke="#f59e0b" name="Revenue Increase (R)" />
-            </LineChart>
-          </ResponsiveContainer>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', padding: '20px' }}>
+            {getAllMetricNames().map((metricName, index) => {
+              // Filter trends to only periods where this metric exists
+              const metricData = trends.filter(trend =>
+                trend[`${metricName}_total`] !== undefined
+              ).map(trend => ({
+                metric_period: trend.metric_period,
+                total: trend[`${metricName}_total`],
+                average: trend[`${metricName}_avg`],
+                count: trend[`${metricName}_count`]
+              }));
+
+              if (metricData.length === 0) return null;
+
+              return (
+                <div
+                  key={metricName}
+                  style={{
+                    backgroundColor: '#f9fafb',
+                    padding: '16px',
+                    borderRadius: '8px',
+                    border: '1px solid #e5e7eb',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s, box-shadow 0.2s'
+                  }}
+                  onClick={() => handleMetricClick(metricName)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                  title="Click to see per-initiative breakdown"
+                >
+                  <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937', marginBottom: '12px', textAlign: 'center' }}>
+                    {metricName}
+                  </h3>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={metricData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="metric_period" style={{ fontSize: '11px' }} />
+                      <YAxis style={{ fontSize: '11px' }} />
+                      <Tooltip
+                        contentStyle={{ fontSize: '12px' }}
+                        formatter={(value, name) => {
+                          if (name === 'total') return [value.toFixed(2), 'Total'];
+                          if (name === 'average') return [value.toFixed(2), 'Average'];
+                          if (name === 'count') return [value, 'Initiatives'];
+                          return [value, name];
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '11px' }} />
+                      <Line
+                        type="monotone"
+                        dataKey="total"
+                        stroke={getColorForMetric(index)}
+                        strokeWidth={2}
+                        dot={{ r: 4 }}
+                        name="Total"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="average"
+                        stroke={getColorForMetric(index + 5)}
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        dot={{ r: 3 }}
+                        name="Average"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <div style={{ marginTop: '12px', padding: '8px', backgroundColor: 'white', borderRadius: '4px', display: 'flex', justifyContent: 'space-around', fontSize: '11px' }}>
+                    <span><strong>Total:</strong> {metricData[metricData.length - 1]?.total?.toFixed(2) || 0}</span>
+                    <span><strong>Avg:</strong> {metricData[metricData.length - 1]?.average?.toFixed(2) || 0}</span>
+                    <span><strong>Initiatives:</strong> {metricData[metricData.length - 1]?.count || 0}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* Average Completion */}
+      {/* All Initiatives - Paginated Table */}
       <div className="card">
         <div className="card-header">
-          <h2>Overall Progress</h2>
+          <h2>All Initiatives ({allInitiatives.length})</h2>
+          <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
+            Complete list of all initiatives with status and details
+          </p>
         </div>
-        <div style={{ padding: '20px 0' }}>
-          <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '14px', color: '#64748b' }}>Average Completion Rate</span>
-            <span style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>
-              {stats?.avg_completion ? `${Number(stats.avg_completion).toFixed(1)}%` : '0%'}
-            </span>
-          </div>
-          <div className="progress-bar">
-            <div
-              className="progress-bar-fill"
-              style={{ width: `${Number(stats?.avg_completion || 0)}%` }}
-            ></div>
-          </div>
-        </div>
+        {allInitiatives.length > 0 ? (
+          <>
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Initiative Name</th>
+                    <th>Status</th>
+                    <th>Health</th>
+                    <th>Departments</th>
+                    <th>Benefit</th>
+                    <th>Progress</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedInitiatives.map(initiative => (
+                    <tr key={initiative.id}>
+                      <td>
+                        <strong>{initiative.use_case_name}</strong>
+                        {initiative.description && (
+                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                            {initiative.description.substring(0, 80)}...
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`badge ${
+                          initiative.status === 'Live (Complete)' ? 'badge-success' :
+                          initiative.status === 'In Progress' ? 'badge-warning' : 'badge-info'
+                        }`}>
+                          {initiative.status}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            backgroundColor: initiative.health_status === 'Green' ? '#10b981' : initiative.health_status === 'Amber' ? '#f59e0b' : '#ef4444'
+                          }}></div>
+                          <span style={{ fontSize: '13px' }}>{initiative.health_status || 'Green'}</span>
+                        </div>
+                      </td>
+                      <td style={{ fontSize: '13px' }}>{initiative.departments?.join(', ') || '-'}</td>
+                      <td style={{ fontSize: '13px' }}>{initiative.benefit || '-'}</td>
+                      <td style={{ minWidth: '150px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div className="progress-bar" style={{ flex: 1 }}>
+                            <div
+                              className="progress-bar-fill"
+                              style={{ width: `${initiative.percentage_complete || 0}%` }}
+                            ></div>
+                          </div>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>
+                            {initiative.percentage_complete || 0}%
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => navigate(`/initiatives/${initiative.id}`)}
+                          className="btn btn-secondary"
+                          style={{ padding: '6px 12px' }}
+                        >
+                          <Eye size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', padding: '20px', borderTop: '1px solid #e5e7eb' }}>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="btn btn-secondary"
+                  style={{ padding: '6px 12px' }}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span style={{ fontSize: '14px', color: '#64748b' }}>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="btn btn-secondary"
+                  style={{ padding: '6px 12px' }}
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <p style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>No initiatives found</p>
+        )}
       </div>
+
+      {/* Drilldown Modal */}
+      {drilldownData && (
+        <div className="modal-overlay" onClick={closeDrilldown}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', maxHeight: '80vh', overflow: 'auto' }}>
+            <div className="modal-header">
+              <div>
+                <h2>{drilldownData.metric_name ? `Metric: ${drilldownData.metric_name}` : `Period: ${drilldownData.period}`}</h2>
+                <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
+                  {drilldownData.metric_name ? 'Per-initiative breakdown across all periods' : 'All initiatives with metrics for this period'}
+                </p>
+              </div>
+              <button onClick={closeDrilldown} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px' }}>
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {drilldownData.initiatives ? (
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Initiative</th>
+                        <th>Departments</th>
+                        <th>Status</th>
+                        <th>Health</th>
+                        <th>Metrics</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {drilldownData.initiatives.map(initiative => (
+                        <tr key={initiative.id}>
+                          <td><strong>{initiative.use_case_name}</strong></td>
+                          <td style={{ fontSize: '13px' }}>{initiative.departments || '-'}</td>
+                          <td>
+                            <span className={`badge ${
+                              initiative.status === 'Live (Complete)' ? 'badge-success' :
+                              initiative.status === 'In Progress' ? 'badge-warning' : 'badge-info'
+                            }`}>
+                              {initiative.status}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div style={{
+                                width: '10px',
+                                height: '10px',
+                                borderRadius: '50%',
+                                backgroundColor: initiative.health_status === 'Green' ? '#10b981' : initiative.health_status === 'Amber' ? '#f59e0b' : '#ef4444'
+                              }}></div>
+                              <span style={{ fontSize: '12px' }}>{initiative.health_status}</span>
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '12px' }}>
+                            {Object.keys(initiative.metrics || {}).length} tracked
+                          </td>
+                          <td>
+                            <button
+                              onClick={() => {
+                                closeDrilldown();
+                                navigate(`/initiatives/${initiative.id}`);
+                              }}
+                              className="btn btn-secondary"
+                              style={{ padding: '4px 8px', fontSize: '12px' }}
+                            >
+                              <Eye size={14} /> View
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : drilldownData.by_period ? (
+                <div>
+                  {Object.entries(drilldownData.by_period).map(([period, initiatives]) => (
+                    <div key={period} style={{ marginBottom: '24px' }}>
+                      <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', paddingBottom: '8px', borderBottom: '2px solid #3b82f6' }}>
+                        {period}
+                      </h3>
+                      <div className="table-container">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Initiative</th>
+                              <th>Departments</th>
+                              <th>Value</th>
+                              <th>Comments</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {initiatives.map(initiative => (
+                              <tr key={`${period}-${initiative.id}`}>
+                                <td><strong>{initiative.use_case_name}</strong></td>
+                                <td style={{ fontSize: '13px' }}>{initiative.departments || '-'}</td>
+                                <td><strong>{initiative.value}</strong></td>
+                                <td style={{ fontSize: '12px', fontStyle: 'italic' }}>{initiative.comments || '-'}</td>
+                                <td>
+                                  <button
+                                    onClick={() => {
+                                      closeDrilldown();
+                                      navigate(`/initiatives/${initiative.id}`);
+                                    }}
+                                    className="btn btn-secondary"
+                                    style={{ padding: '4px 8px', fontSize: '12px' }}
+                                  >
+                                    <Eye size={14} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <div className="modal-footer">
+              <button onClick={closeDrilldown} className="btn btn-secondary">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
