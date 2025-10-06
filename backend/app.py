@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 import logging
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import AzureOpenAI
 
 # Load environment variables
 load_dotenv()
@@ -33,14 +33,16 @@ DEFAULT_USER = {
     'email': 'test@tester.com'
 }
 
-# OpenAI client configuration
+# Azure OpenAI client configuration
 openai_api_key = os.environ.get('OPENAI_API_KEY')
-openai_base_url = os.environ.get('OPENAI_BASE_URL')
+openai_endpoint = os.environ.get('OPENAI_ENDPOINT')
+openai_api_version = os.environ.get('OPENAI_API_VERSION', '2024-02-15-preview')
 
-if openai_base_url:
-    openai_client = OpenAI(api_key=openai_api_key, base_url=openai_base_url)
-else:
-    openai_client = OpenAI(api_key=openai_api_key)
+openai_client = AzureOpenAI(
+    api_key=openai_api_key,
+    azure_endpoint=openai_endpoint,
+    api_version=openai_api_version
+)
 
 def get_db_connection():
     """Create and return a database connection"""
@@ -1755,7 +1757,7 @@ IMPORTANT GUIDELINES:
 
         # Call OpenAI API
         response = openai_client.chat.completions.create(
-            model="gpt-4-turbo-preview",  # Using GPT-4 Turbo as it's the latest stable version
+            model="gpt-4.1",  # Using gpt-4.1 deployment
             messages=[
                 {
                     "role": "system",

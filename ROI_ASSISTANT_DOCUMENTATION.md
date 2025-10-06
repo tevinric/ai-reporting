@@ -40,7 +40,7 @@ The ROI Assistant is a new tool added to the AI Reporting application that helps
 - **Response**: JSON object with recommendation text
 
 #### 2. OpenAI Integration
-- Uses GPT-4 Turbo Preview model
+- Uses GPT-4.1 model deployment
 - Professional system prompt ensures quality output
 - Comprehensive user prompt with all collected data
 - Temperature set to 0.7 for balanced creativity and consistency
@@ -150,10 +150,14 @@ Add your OpenAI configuration to the backend `.env` file:
 
 ```bash
 OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_BASE_URL=https://your-endpoint-here.openai.azure.com/
 ```
 
-**Note**: The `OPENAI_BASE_URL` is separate from the React app's API base URL. This is the endpoint for OpenAI's API (or your custom proxy/Azure OpenAI endpoint).
+**Note**:
+- The `OPENAI_BASE_URL` is separate from the React app's API base URL. This is the endpoint for OpenAI's API (or your custom proxy/Azure OpenAI endpoint).
+- For standard OpenAI: use `https://api.openai.com/v1`
+- For Azure OpenAI: use `https://your-resource.openai.azure.com/`
+- The ROI Assistant is configured to use the `gpt-4.1` model deployment. Ensure your deployment name matches this, or update the model name in `app.py` line 1758.
 
 ### 2. Database Setup
 
@@ -260,11 +264,12 @@ Potential improvements for future versions:
 
 ## Technical Notes
 
-- **Model**: Uses `gpt-4-turbo-preview` (latest stable GPT-4 version)
+- **Model**: Uses `gpt-4.1` deployment
 - **Temperature**: 0.7 (balanced between consistency and creativity)
 - **Max Tokens**: 2000 (sufficient for detailed recommendations)
 - **Response Format**: Plain text with markdown-style formatting
 - **Error Handling**: Graceful degradation if database save fails
+- **API Configuration**: Supports both standard OpenAI and Azure OpenAI endpoints via environment variables
 
 ## Files Modified/Created
 
