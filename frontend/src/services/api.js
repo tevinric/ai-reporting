@@ -54,4 +54,13 @@ export const createRisk = (id, data) => api.post(API_ENDPOINTS.INITIATIVE_RISKS(
 export const updateRisk = (id, data) => api.put(API_ENDPOINTS.RISK_BY_ID(id), data);
 export const deleteRisk = (id) => api.delete(API_ENDPOINTS.RISK_BY_ID(id));
 
+// Progress Updates
+export const getProgressUpdates = (id, page = 1, pageSize = 10) => {
+  return api.get(API_ENDPOINTS.PROGRESS_UPDATES(id), { params: { page, page_size: pageSize } });
+};
+export const getProgressUpdateById = (id) => api.get(API_ENDPOINTS.PROGRESS_UPDATE_BY_ID(id));
+export const createProgressUpdate = (initiativeId, data) => api.post(API_ENDPOINTS.PROGRESS_UPDATES(initiativeId), data);
+export const updateProgressUpdate = (id, data) => api.put(API_ENDPOINTS.PROGRESS_UPDATE_BY_ID(id), data);
+export const deleteProgressUpdate = (id) => api.delete(API_ENDPOINTS.PROGRESS_UPDATE_BY_ID(id));
+
 export default api;

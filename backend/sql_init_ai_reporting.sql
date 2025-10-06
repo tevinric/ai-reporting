@@ -2,6 +2,7 @@
 -- This script creates all necessary tables for the AI reporting application
 
 -- Drop tables if they exist (in reverse order of dependencies)
+IF OBJECT_ID('dbo.progress_updates', 'U') IS NOT NULL DROP TABLE dbo.progress_updates;
 IF OBJECT_ID('dbo.risks', 'U') IS NOT NULL DROP TABLE dbo.risks;
 IF OBJECT_ID('dbo.monthly_metrics', 'U') IS NOT NULL DROP TABLE dbo.monthly_metrics;
 IF OBJECT_ID('dbo.initiative_departments', 'U') IS NOT NULL DROP TABLE dbo.initiative_departments;
@@ -99,6 +100,23 @@ CREATE TABLE dbo.risks (
     risk_mitigation NVARCHAR(MAX), -- Mitigation strategies
     controls NVARCHAR(MAX), -- Control measures
     overall_risk NVARCHAR(50), -- High, Medium, Low (calculated)
+    created_at DATETIME DEFAULT GETDATE(),
+    created_by_name NVARCHAR(255),
+    created_by_email NVARCHAR(255),
+    modified_at DATETIME DEFAULT GETDATE(),
+    modified_by_name NVARCHAR(255),
+    modified_by_email NVARCHAR(255),
+    FOREIGN KEY (initiative_id) REFERENCES dbo.initiatives(id) ON DELETE CASCADE
+);
+
+-- Table: progress_updates
+-- Stores progress updates/comments for initiatives
+CREATE TABLE dbo.progress_updates (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    initiative_id INT NOT NULL,
+    update_type NVARCHAR(50) NOT NULL, -- 'Update', 'Road block', 'Threat', 'Requirement'
+    update_title NVARCHAR(500) NOT NULL,
+    update_details NVARCHAR(MAX),
     created_at DATETIME DEFAULT GETDATE(),
     created_by_name NVARCHAR(255),
     created_by_email NVARCHAR(255),
@@ -215,7 +233,13 @@ INSERT INTO dbo.field_options (field_name, option_value, display_order) VALUES
 -- Initiative Type
 ('initiative_type', 'Internal AI', 1),
 ('initiative_type', 'RPA', 2),
-('initiative_type', 'External AI', 3);
+('initiative_type', 'External AI', 3),
+
+-- Update Type (for progress updates)
+('update_type', 'Update', 1),
+('update_type', 'Road block', 2),
+('update_type', 'Threat', 3),
+('update_type', 'Requirement', 4);
 
 -- Insert default custom metrics
 INSERT INTO dbo.custom_metrics (metric_name, metric_description, metric_type, unit_of_measure) VALUES
@@ -242,5 +266,6 @@ CREATE INDEX IX_initiatives_health_status ON dbo.initiatives(health_status);
 CREATE INDEX IX_monthly_metrics_period ON dbo.monthly_metrics(metric_period);
 CREATE INDEX IX_field_options_field_name ON dbo.field_options(field_name, is_active);
 CREATE INDEX IX_risks_initiative ON dbo.risks(initiative_id);
+CREATE INDEX IX_progress_updates_initiative ON dbo.progress_updates(initiative_id, created_at DESC);
 
 GO

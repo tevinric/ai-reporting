@@ -1541,5 +1541,155 @@ def delete_risk(risk_id):
         logger.error(f"Error deleting risk: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+# ==================== Progress Updates ====================
+
+@app.route('/api/initiatives/<int:initiative_id>/progress-updates', methods=['GET'])
+def get_progress_updates(initiative_id):
+    """Get all progress updates for an initiative with pagination"""
+    try:
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 10))
+        offset = (page - 1) * page_size
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get total count
+        cursor.execute("""
+            SELECT COUNT(*) FROM progress_updates
+            WHERE initiative_id = ?
+        """, initiative_id)
+        total_count = cursor.fetchone()[0]
+
+        # Get paginated updates
+        cursor.execute("""
+            SELECT * FROM progress_updates
+            WHERE initiative_id = ?
+            ORDER BY created_at DESC
+            OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+        """, (initiative_id, offset, page_size))
+
+        updates = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify({
+            'updates': updates,
+            'total_count': total_count,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total_count + page_size - 1) // page_size
+        })
+    except Exception as e:
+        logger.error(f"Error fetching progress updates: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/initiatives/<int:initiative_id>/progress-updates', methods=['POST'])
+def create_progress_update(initiative_id):
+    """Create a new progress update for an initiative"""
+    try:
+        data = request.json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO progress_updates (
+                initiative_id, update_type, update_title, update_details,
+                created_by_name, created_by_email, modified_by_name, modified_by_email
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            initiative_id,
+            data.get('update_type'),
+            data.get('update_title'),
+            data.get('update_details'),
+            DEFAULT_USER['name'],
+            DEFAULT_USER['email'],
+            DEFAULT_USER['name'],
+            DEFAULT_USER['email']
+        ))
+
+        cursor.execute("SELECT @@IDENTITY")
+        update_id = cursor.fetchone()[0]
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'id': update_id, 'message': 'Progress update created successfully'}), 201
+    except Exception as e:
+        logger.error(f"Error creating progress update: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/progress-updates/<int:update_id>', methods=['GET'])
+def get_progress_update(update_id):
+    """Get a specific progress update by ID"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM progress_updates WHERE id = ?", update_id)
+        row = cursor.fetchone()
+
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Progress update not found'}), 404
+
+        update = dict_from_row(cursor, row)
+
+        conn.close()
+        return jsonify(update)
+    except Exception as e:
+        logger.error(f"Error fetching progress update: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/progress-updates/<int:update_id>', methods=['PUT'])
+def update_progress_update(update_id):
+    """Update a progress update"""
+    try:
+        data = request.json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE progress_updates SET
+                update_type = ?,
+                update_title = ?,
+                update_details = ?,
+                modified_at = GETDATE(),
+                modified_by_name = ?,
+                modified_by_email = ?
+            WHERE id = ?
+        """, (
+            data.get('update_type'),
+            data.get('update_title'),
+            data.get('update_details'),
+            DEFAULT_USER['name'],
+            DEFAULT_USER['email'],
+            update_id
+        ))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Progress update updated successfully'})
+    except Exception as e:
+        logger.error(f"Error updating progress update: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/progress-updates/<int:update_id>', methods=['DELETE'])
+def delete_progress_update(update_id):
+    """Delete a progress update"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("DELETE FROM progress_updates WHERE id = ?", update_id)
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Progress update deleted successfully'})
+    except Exception as e:
+        logger.error(f"Error deleting progress update: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, TrendingUp, TrendingDown, AlertTriangle, Edit2, Trash2, Save, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Edit, TrendingUp, TrendingDown, AlertTriangle, Edit2, Trash2, Save, BarChart3, Plus, Eye, MessageSquare, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { getInitiativeById, getInitiativeMetrics } from '../services/api';
+import { getInitiativeById, getInitiativeMetrics, getProgressUpdates, createProgressUpdate, updateProgressUpdate, deleteProgressUpdate, getProgressUpdateById } from '../services/api';
 import RiskModal from '../components/RiskModal';
 import MetricsModal from '../components/MetricsModal';
+import ProgressUpdateModal from '../components/ProgressUpdateModal';
+import ProgressTimeline from '../components/ProgressTimeline';
 import axios from 'axios';
 import { API_ENDPOINTS } from '../config/api';
 
@@ -20,9 +22,23 @@ function ProjectView() {
   const [showRiskModal, setShowRiskModal] = useState(false);
   const [editingMetric, setEditingMetric] = useState(null);
 
+  // Progress Updates state
+  const [progressUpdates, setProgressUpdates] = useState([]);
+  const [progressUpdatesLoading, setProgressUpdatesLoading] = useState(false);
+  const [showProgressUpdateModal, setShowProgressUpdateModal] = useState(false);
+  const [selectedProgressUpdate, setSelectedProgressUpdate] = useState(null);
+  const [viewProgressUpdate, setViewProgressUpdate] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUpdates, setTotalUpdates] = useState(0);
+
   useEffect(() => {
     loadData();
   }, [id]);
+
+  useEffect(() => {
+    loadProgressUpdates();
+  }, [id, currentPage]);
 
   const loadData = async () => {
     try {
@@ -39,6 +55,58 @@ function ProjectView() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadProgressUpdates = async () => {
+    try {
+      setProgressUpdatesLoading(true);
+      const response = await getProgressUpdates(id, currentPage, 10);
+      setProgressUpdates(response.data.updates);
+      setTotalPages(response.data.total_pages);
+      setTotalUpdates(response.data.total_count);
+    } catch (err) {
+      console.error('Failed to load progress updates:', err);
+    } finally {
+      setProgressUpdatesLoading(false);
+    }
+  };
+
+  const handleSaveProgressUpdate = async (formData) => {
+    if (selectedProgressUpdate) {
+      await updateProgressUpdate(selectedProgressUpdate.id, formData);
+    } else {
+      await createProgressUpdate(id, formData);
+    }
+    loadProgressUpdates();
+    setShowProgressUpdateModal(false);
+    setSelectedProgressUpdate(null);
+  };
+
+  const handleEditProgressUpdate = (update) => {
+    setSelectedProgressUpdate(update);
+    setShowProgressUpdateModal(true);
+  };
+
+  const handleDeleteProgressUpdate = async (updateId) => {
+    if (!window.confirm('Are you sure you want to delete this progress update?')) {
+      return;
+    }
+    try {
+      await deleteProgressUpdate(updateId);
+      loadProgressUpdates();
+    } catch (err) {
+      alert('Failed to delete progress update');
+      console.error(err);
+    }
+  };
+
+  const handleViewProgressUpdate = async (updateId) => {
+    try {
+      const response = await getProgressUpdateById(updateId);
+      setViewProgressUpdate(response.data);
+    } catch (err) {
+      console.error('Failed to load progress update details:', err);
     }
   };
 
@@ -384,6 +452,280 @@ function ProjectView() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Progress Updates Section */}
+      <div className="card">
+        <div className="card-header">
+          <h2>Progress Updates</h2>
+          <button
+            onClick={() => {
+              setSelectedProgressUpdate(null);
+              setShowProgressUpdateModal(true);
+            }}
+            className="btn btn-primary"
+          >
+            <Plus size={18} />
+            Add Update
+          </button>
+        </div>
+
+        {progressUpdatesLoading ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+            Loading updates...
+          </div>
+        ) : progressUpdates.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+            <MessageSquare size={48} style={{ margin: '0 auto 16px', opacity: 0.3 }} />
+            <p>No progress updates yet</p>
+            <button
+              onClick={() => {
+                setSelectedProgressUpdate(null);
+                setShowProgressUpdateModal(true);
+              }}
+              className="btn btn-primary"
+              style={{ marginTop: '16px' }}
+            >
+              <Plus size={18} />
+              Add Your First Update
+            </button>
+          </div>
+        ) : (
+          <>
+            <div style={{ overflowX: 'auto' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>Title</th>
+                    <th>Created By</th>
+                    <th>Created At</th>
+                    <th>Last Modified</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {progressUpdates.map(update => {
+                    const getTypeColor = (type) => {
+                      switch (type) {
+                        case 'Update': return '#10b981';
+                        case 'Road block': return '#f59e0b';
+                        case 'Threat': return '#ef4444';
+                        case 'Requirement': return '#3b82f6';
+                        default: return '#64748b';
+                      }
+                    };
+
+                    return (
+                      <tr key={update.id}>
+                        <td>
+                          <span style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            backgroundColor: `${getTypeColor(update.update_type)}20`,
+                            color: getTypeColor(update.update_type)
+                          }}>
+                            {update.update_type}
+                          </span>
+                        </td>
+                        <td>
+                          <strong>{update.update_title}</strong>
+                        </td>
+                        <td>{update.created_by_name}</td>
+                        <td style={{ fontSize: '13px', color: '#64748b' }}>
+                          {new Date(update.created_at).toLocaleDateString()}
+                        </td>
+                        <td style={{ fontSize: '13px', color: '#64748b' }}>
+                          {update.modified_at !== update.created_at
+                            ? new Date(update.modified_at).toLocaleDateString()
+                            : '-'}
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              onClick={() => handleViewProgressUpdate(update.id)}
+                              className="btn btn-secondary"
+                              style={{ padding: '6px 12px' }}
+                              title="View Details"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleEditProgressUpdate(update)}
+                              className="btn btn-secondary"
+                              style={{ padding: '6px 12px' }}
+                              title="Edit"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteProgressUpdate(update.id)}
+                              className="btn btn-danger"
+                              style={{ padding: '6px 12px' }}
+                              title="Delete"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', padding: '16px', borderTop: '1px solid #e5e7eb' }}>
+                <span style={{ fontSize: '14px', color: '#64748b' }}>
+                  Showing page {currentPage} of {totalPages} ({totalUpdates} total updates)
+                </span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="btn btn-secondary"
+                    style={{ padding: '6px 12px' }}
+                  >
+                    <ChevronLeft size={16} />
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="btn btn-secondary"
+                    style={{ padding: '6px 12px' }}
+                  >
+                    Next
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Timeline */}
+        {progressUpdates.length > 0 && (
+          <div style={{ marginTop: '40px', paddingTop: '40px', borderTop: '2px solid #e5e7eb' }}>
+            <ProgressTimeline updates={progressUpdates} />
+          </div>
+        )}
+      </div>
+
+      {/* Progress Update Modal */}
+      {showProgressUpdateModal && (
+        <ProgressUpdateModal
+          update={selectedProgressUpdate}
+          onSave={handleSaveProgressUpdate}
+          onClose={() => {
+            setShowProgressUpdateModal(false);
+            setSelectedProgressUpdate(null);
+          }}
+        />
+      )}
+
+      {/* View Progress Update Modal */}
+      {viewProgressUpdate && (
+        <div className="modal-overlay" onClick={() => setViewProgressUpdate(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
+            <div className="modal-header">
+              <h2>Update Details</h2>
+              <button onClick={() => setViewProgressUpdate(null)} className="modal-close">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div style={{ marginBottom: '20px' }}>
+                <span className="stat-label">Type</span>
+                <div style={{ marginTop: '8px' }}>
+                  <span style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    backgroundColor: (() => {
+                      switch (viewProgressUpdate.update_type) {
+                        case 'Update': return '#10b98120';
+                        case 'Road block': return '#f59e0b20';
+                        case 'Threat': return '#ef444420';
+                        case 'Requirement': return '#3b82f620';
+                        default: return '#64748b20';
+                      }
+                    })(),
+                    color: (() => {
+                      switch (viewProgressUpdate.update_type) {
+                        case 'Update': return '#10b981';
+                        case 'Road block': return '#f59e0b';
+                        case 'Threat': return '#ef4444';
+                        case 'Requirement': return '#3b82f6';
+                        default: return '#64748b';
+                      }
+                    })()
+                  }}>
+                    {viewProgressUpdate.update_type}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <span className="stat-label">Title</span>
+                <div style={{ marginTop: '8px', fontSize: '18px', fontWeight: '600', color: '#1f2937' }}>
+                  {viewProgressUpdate.update_title}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <span className="stat-label">Details</span>
+                <div style={{ marginTop: '8px', fontSize: '14px', color: '#1f2937', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                  {viewProgressUpdate.update_details || 'No details provided'}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', paddingTop: '20px', borderTop: '1px solid #e5e7eb' }}>
+                <div>
+                  <span className="stat-label">Created By</span>
+                  <div style={{ marginTop: '4px', fontSize: '14px', color: '#1f2937' }}>
+                    {viewProgressUpdate.created_by_name}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>
+                    {viewProgressUpdate.created_by_email}
+                  </div>
+                </div>
+                <div>
+                  <span className="stat-label">Created At</span>
+                  <div style={{ marginTop: '4px', fontSize: '14px', color: '#1f2937' }}>
+                    {new Date(viewProgressUpdate.created_at).toLocaleString()}
+                  </div>
+                </div>
+                {viewProgressUpdate.modified_at !== viewProgressUpdate.created_at && (
+                  <>
+                    <div>
+                      <span className="stat-label">Modified By</span>
+                      <div style={{ marginTop: '4px', fontSize: '14px', color: '#1f2937' }}>
+                        {viewProgressUpdate.modified_by_name}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="stat-label">Modified At</span>
+                      <div style={{ marginTop: '4px', fontSize: '14px', color: '#1f2937' }}>
+                        {new Date(viewProgressUpdate.modified_at).toLocaleString()}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button onClick={() => setViewProgressUpdate(null)} className="btn btn-secondary">
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
