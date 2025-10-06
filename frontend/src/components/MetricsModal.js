@@ -202,7 +202,7 @@ function MetricsModal({ initiative, onClose }) {
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
                   gap: '4px',
-                  padding: '12px',
+                  padding: '8px',
                   backgroundColor: 'white',
                   borderRadius: '6px',
                   border: '1px solid #d1d5db',
@@ -214,8 +214,8 @@ function MetricsModal({ initiative, onClose }) {
                       style={{
                         display: 'flex',
                         alignItems: 'flex-start',
-                        gap: '8px',
-                        padding: '6px',
+                        gap: '6px',
+                        padding: '4px',
                         cursor: 'pointer',
                         borderRadius: '4px',
                         transition: 'background-color 0.2s',
@@ -230,7 +230,7 @@ function MetricsModal({ initiative, onClose }) {
                         onChange={() => handleMetricSelection(metric)}
                         style={{ cursor: 'pointer', marginTop: '2px', flexShrink: 0 }}
                       />
-                      <span style={{ fontSize: '14px', textAlign: 'left' }}>
+                      <span style={{ fontSize: '14px', textAlign: 'left', wordBreak: 'break-word' }}>
                         {metric.metric_name}
                         {metric.unit_of_measure && (
                           <span style={{ color: '#64748b', fontSize: '12px' }}> ({metric.unit_of_measure})</span>
