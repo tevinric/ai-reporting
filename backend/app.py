@@ -822,62 +822,6 @@ def delete_field_option(option_id):
         logger.error(f"Error deleting field option: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-# ==================== Custom Metrics Management ====================
-
-@app.route('/api/custom-metrics', methods=['GET'])
-def get_custom_metrics():
-    """Get all custom metrics"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT * FROM custom_metrics
-            WHERE is_active = 1
-            ORDER BY metric_name
-        """)
-
-        metrics = [dict_from_row(cursor, row) for row in cursor.fetchall()]
-
-        conn.close()
-        return jsonify(metrics)
-    except Exception as e:
-        logger.error(f"Error fetching custom metrics: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/custom-metrics', methods=['POST'])
-def create_custom_metric():
-    """Create a new custom metric"""
-    try:
-        data = request.json
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            INSERT INTO custom_metrics (
-                metric_name, metric_description, metric_type, unit_of_measure,
-                created_by, modified_by
-            ) VALUES (?, ?, ?, ?, ?, ?)
-        """, (
-            data.get('metric_name'),
-            data.get('metric_description'),
-            data.get('metric_type'),
-            data.get('unit_of_measure'),
-            DEFAULT_USER['email'],
-            DEFAULT_USER['email']
-        ))
-
-        cursor.execute("SELECT @@IDENTITY")
-        metric_id = cursor.fetchone()[0]
-
-        conn.commit()
-        conn.close()
-
-        return jsonify({'id': metric_id, 'message': 'Custom metric created successfully'}), 201
-    except Exception as e:
-        logger.error(f"Error creating custom metric: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
 # ==================== Featured Solutions ====================
 
 @app.route('/api/featured-solutions', methods=['GET'])
