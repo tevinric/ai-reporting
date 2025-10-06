@@ -201,25 +201,23 @@ function MetricsModal({ initiative, onClose }) {
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-                  gap: '4px',
-                  padding: '8px',
+                  gap: '8px',
+                  padding: '12px',
                   backgroundColor: 'white',
                   borderRadius: '6px',
-                  border: '1px solid #d1d5db',
-                  alignItems: 'start'
+                  border: '1px solid #d1d5db'
                 }}>
                   {customMetrics.map(metric => (
                     <label
                       key={metric.id}
                       style={{
                         display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '6px',
-                        padding: '4px',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '6px',
                         cursor: 'pointer',
                         borderRadius: '4px',
-                        transition: 'background-color 0.2s',
-                        textAlign: 'left'
+                        transition: 'background-color 0.2s'
                       }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -228,9 +226,9 @@ function MetricsModal({ initiative, onClose }) {
                         type="checkbox"
                         checked={selectedMetrics.some(m => m.id === metric.id)}
                         onChange={() => handleMetricSelection(metric)}
-                        style={{ cursor: 'pointer', marginTop: '2px', flexShrink: 0 }}
+                        style={{ cursor: 'pointer' }}
                       />
-                      <span style={{ fontSize: '14px', textAlign: 'left', wordBreak: 'break-word' }}>
+                      <span style={{ fontSize: '14px' }}>
                         {metric.metric_name}
                         {metric.unit_of_measure && (
                           <span style={{ color: '#64748b', fontSize: '12px' }}> ({metric.unit_of_measure})</span>
