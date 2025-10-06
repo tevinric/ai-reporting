@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, TrendingUp, TrendingDown, Calendar, AlertTriangle, Edit2, Trash2, Save } from 'lucide-react';
+import { ArrowLeft, Edit, TrendingUp, TrendingDown, AlertTriangle, Edit2, Trash2, Save, BarChart3 } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { getInitiativeById, getInitiativeMetrics, saveInitiativeMetric } from '../services/api';
+import { getInitiativeById, getInitiativeMetrics } from '../services/api';
 import RiskModal from '../components/RiskModal';
+import MetricsModal from '../components/MetricsModal';
 import axios from 'axios';
 import { API_ENDPOINTS } from '../config/api';
 
@@ -15,38 +16,9 @@ function ProjectView() {
   const [metrics, setMetrics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showMetricForm, setShowMetricForm] = useState(false);
+  const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [showRiskModal, setShowRiskModal] = useState(false);
   const [editingMetric, setEditingMetric] = useState(null);
-  const [metricFormData, setMetricFormData] = useState({
-    metric_period: '',
-    customer_experience_score: '',
-    customer_experience_comments: '',
-    time_saved_hours: '',
-    time_saved_comments: '',
-    cost_saved_rands: '',
-    cost_saved_comments: '',
-    revenue_increase_rands: '',
-    revenue_increase_comments: '',
-    processed_units: '',
-    processed_units_comments: '',
-    model_accuracy: '',
-    model_accuracy_comments: '',
-    user_adoption_rate: '',
-    user_adoption_comments: '',
-    error_rate: '',
-    error_rate_comments: '',
-    response_time_ms: '',
-    response_time_comments: '',
-    data_quality_score: '',
-    data_quality_comments: '',
-    user_satisfaction_score: '',
-    user_satisfaction_comments: '',
-    business_impact_score: '',
-    business_impact_comments: '',
-    innovation_score: '',
-    innovation_comments: ''
-  });
 
   useEffect(() => {
     loadData();
@@ -170,52 +142,6 @@ function ProjectView() {
     }
   };
 
-  const handleMetricFormChange = (e) => {
-    const { name, value } = e.target;
-    setMetricFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSaveMetric = async (e) => {
-    e.preventDefault();
-    try {
-      await saveInitiativeMetric(id, metricFormData);
-      setShowMetricForm(false);
-      setMetricFormData({
-        metric_period: '',
-        customer_experience_score: '',
-        customer_experience_comments: '',
-        time_saved_hours: '',
-        time_saved_comments: '',
-        cost_saved_rands: '',
-        cost_saved_comments: '',
-        revenue_increase_rands: '',
-        revenue_increase_comments: '',
-        processed_units: '',
-        processed_units_comments: '',
-        model_accuracy: '',
-        model_accuracy_comments: '',
-        user_adoption_rate: '',
-        user_adoption_comments: '',
-        error_rate: '',
-        error_rate_comments: '',
-        response_time_ms: '',
-        response_time_comments: '',
-        data_quality_score: '',
-        data_quality_comments: '',
-        user_satisfaction_score: '',
-        user_satisfaction_comments: '',
-        business_impact_score: '',
-        business_impact_comments: '',
-        innovation_score: '',
-        innovation_comments: ''
-      });
-      loadData();
-    } catch (err) {
-      alert('Failed to save metrics');
-      console.error(err);
-    }
-  };
-
   const getStatusBadge = (status) => {
     const classes = {
       'Ideation': 'badge-info',
@@ -292,6 +218,17 @@ function ProjectView() {
         <RiskModal
           initiativeId={id}
           onClose={() => setShowRiskModal(false)}
+        />
+      )}
+
+      {/* Metrics Modal */}
+      {showMetricsModal && initiative && (
+        <MetricsModal
+          initiative={initiative}
+          onClose={() => {
+            setShowMetricsModal(false);
+            loadData(); // Reload data after metrics modal closes
+          }}
         />
       )}
 
@@ -451,181 +388,15 @@ function ProjectView() {
         </div>
       )}
 
-      {/* Add Metrics Button */}
+      {/* Monthly Metrics */}
       <div className="card">
         <div className="card-header">
           <h2>Monthly Metrics</h2>
-          <button onClick={() => setShowMetricForm(!showMetricForm)} className="btn btn-primary">
-            <Calendar size={18} />
-            {showMetricForm ? 'Cancel' : 'Add Monthly Metrics'}
+          <button onClick={() => setShowMetricsModal(true)} className="btn btn-primary">
+            <BarChart3 size={18} />
+            Track Monthly Metrics
           </button>
         </div>
-
-        {showMetricForm && (
-          <form onSubmit={handleSaveMetric} style={{ marginTop: '20px' }}>
-            <div className="form-group">
-              <label>Reporting Period (YYYY-MM) *</label>
-              <input
-                type="month"
-                name="metric_period"
-                value={metricFormData.metric_period}
-                onChange={handleMetricFormChange}
-                required
-              />
-            </div>
-
-            <h3 style={{ margin: '24px 0 16px 0', fontSize: '16px', fontWeight: '600' }}>ROI Metrics</h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
-              <div className="form-group">
-                <label>Customer Experience Score (1-10)</label>
-                <input
-                  type="number"
-                  name="customer_experience_score"
-                  value={metricFormData.customer_experience_score}
-                  onChange={handleMetricFormChange}
-                  min="1"
-                  max="10"
-                  step="0.1"
-                />
-              </div>
-              <div className="form-group">
-                <label>Comments</label>
-                <textarea
-                  name="customer_experience_comments"
-                  value={metricFormData.customer_experience_comments}
-                  onChange={handleMetricFormChange}
-                  rows="2"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
-              <div className="form-group">
-                <label>Time Saved (Hours/Month)</label>
-                <input
-                  type="number"
-                  name="time_saved_hours"
-                  value={metricFormData.time_saved_hours}
-                  onChange={handleMetricFormChange}
-                  step="0.01"
-                />
-              </div>
-              <div className="form-group">
-                <label>Comments</label>
-                <textarea
-                  name="time_saved_comments"
-                  value={metricFormData.time_saved_comments}
-                  onChange={handleMetricFormChange}
-                  rows="2"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
-              <div className="form-group">
-                <label>Cost Saved (Rands/Month)</label>
-                <input
-                  type="number"
-                  name="cost_saved_rands"
-                  value={metricFormData.cost_saved_rands}
-                  onChange={handleMetricFormChange}
-                  step="0.01"
-                />
-              </div>
-              <div className="form-group">
-                <label>Comments</label>
-                <textarea
-                  name="cost_saved_comments"
-                  value={metricFormData.cost_saved_comments}
-                  onChange={handleMetricFormChange}
-                  rows="2"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
-              <div className="form-group">
-                <label>Revenue Increase (Rands/Month)</label>
-                <input
-                  type="number"
-                  name="revenue_increase_rands"
-                  value={metricFormData.revenue_increase_rands}
-                  onChange={handleMetricFormChange}
-                  step="0.01"
-                />
-              </div>
-              <div className="form-group">
-                <label>Comments</label>
-                <textarea
-                  name="revenue_increase_comments"
-                  value={metricFormData.revenue_increase_comments}
-                  onChange={handleMetricFormChange}
-                  rows="2"
-                />
-              </div>
-            </div>
-
-            <h3 style={{ margin: '24px 0 16px 0', fontSize: '16px', fontWeight: '600' }}>AI Performance Metrics</h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
-              <div className="form-group">
-                <label>Model Accuracy (%)</label>
-                <input
-                  type="number"
-                  name="model_accuracy"
-                  value={metricFormData.model_accuracy}
-                  onChange={handleMetricFormChange}
-                  min="0"
-                  max="100"
-                  step="0.1"
-                />
-              </div>
-              <div className="form-group">
-                <label>Comments</label>
-                <textarea
-                  name="model_accuracy_comments"
-                  value={metricFormData.model_accuracy_comments}
-                  onChange={handleMetricFormChange}
-                  rows="2"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
-              <div className="form-group">
-                <label>User Adoption Rate (%)</label>
-                <input
-                  type="number"
-                  name="user_adoption_rate"
-                  value={metricFormData.user_adoption_rate}
-                  onChange={handleMetricFormChange}
-                  min="0"
-                  max="100"
-                  step="0.1"
-                />
-              </div>
-              <div className="form-group">
-                <label>Comments</label>
-                <textarea
-                  name="user_adoption_comments"
-                  value={metricFormData.user_adoption_comments}
-                  onChange={handleMetricFormChange}
-                  rows="2"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-              <button type="button" onClick={() => setShowMetricForm(false)} className="btn btn-secondary">
-                Cancel
-              </button>
-              <button type="submit" className="btn btn-success">
-                Save Metrics
-              </button>
-            </div>
-          </form>
-        )}
 
         {/* Metrics History */}
         {metrics.length > 0 && (
