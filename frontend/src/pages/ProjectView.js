@@ -391,36 +391,63 @@ function ProjectView() {
         </>
       )}
 
-      {/* Metrics Trends */}
+      {/* Individual Metrics Trends */}
       {metrics.length > 1 && getAllMetricNames().length > 0 && (
         <div className="card">
           <div className="card-header">
             <h2>Performance Trends</h2>
             <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
-              Historical trends for all tracked metrics
+              Individual trend charts for each tracked metric
             </p>
           </div>
-          <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={prepareTrendData()}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="metric_period" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              {getAllMetricNames().map((metricName, index) => (
-                <Line
-                  key={metricName}
-                  type="monotone"
-                  dataKey={metricName}
-                  stroke={getColorForIndex(index)}
-                  name={metricName}
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px', padding: '20px' }}>
+            {getAllMetricNames().map((metricName, index) => {
+              // Filter data to only include periods where this metric has values
+              const metricData = prepareTrendData().filter(point =>
+                point[metricName] !== undefined && point[metricName] !== null
+              );
+
+              if (metricData.length === 0) return null;
+
+              return (
+                <div key={metricName} style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937', marginBottom: '12px', textAlign: 'center' }}>
+                    {metricName}
+                  </h3>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <LineChart data={metricData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="metric_period"
+                        style={{ fontSize: '12px' }}
+                      />
+                      <YAxis
+                        style={{ fontSize: '12px' }}
+                      />
+                      <Tooltip
+                        contentStyle={{ fontSize: '12px' }}
+                        labelStyle={{ fontWeight: 'bold' }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey={metricName}
+                        stroke={getColorForIndex(index)}
+                        strokeWidth={3}
+                        dot={{ r: 5, fill: getColorForIndex(index) }}
+                        activeDot={{ r: 7 }}
+                        name={metricName}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <div style={{ marginTop: '12px', padding: '8px', backgroundColor: 'white', borderRadius: '4px', textAlign: 'center' }}>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>
+                      {metricData.length} data points
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
