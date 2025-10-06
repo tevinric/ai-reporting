@@ -67,6 +67,50 @@ function ProjectView() {
     }
   };
 
+  // Prepare trend data from metrics - flatten additional_metrics into trend chart data
+  const prepareTrendData = () => {
+    if (metrics.length === 0) return [];
+
+    return [...metrics].reverse().map(metric => {
+      const trendPoint = {
+        metric_period: metric.metric_period
+      };
+
+      // Add all additional metrics to the trend point
+      if (metric.additional_metrics && typeof metric.additional_metrics === 'object') {
+        Object.entries(metric.additional_metrics).forEach(([metricName, metricData]) => {
+          if (metricData && metricData.value !== null && metricData.value !== undefined && metricData.value !== '') {
+            trendPoint[metricName] = parseFloat(metricData.value);
+          }
+        });
+      }
+
+      return trendPoint;
+    });
+  };
+
+  // Get all unique metric names across all periods
+  const getAllMetricNames = () => {
+    const metricNames = new Set();
+
+    metrics.forEach(metric => {
+      if (metric.additional_metrics && typeof metric.additional_metrics === 'object') {
+        Object.keys(metric.additional_metrics).forEach(name => metricNames.add(name));
+      }
+    });
+
+    return Array.from(metricNames);
+  };
+
+  // Generate colors for trend lines
+  const getColorForIndex = (index) => {
+    const colors = [
+      '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+      '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'
+    ];
+    return colors[index % colors.length];
+  };
+
   const handleMetricFormChange = (e) => {
     const { name, value } = e.target;
     setMetricFormData(prev => ({ ...prev, [name]: value }));
@@ -289,22 +333,33 @@ function ProjectView() {
       )}
 
       {/* Metrics Trends */}
-      {metrics.length > 1 && (
+      {metrics.length > 1 && getAllMetricNames().length > 0 && (
         <div className="card">
           <div className="card-header">
-            <h2>Historical Trends</h2>
+            <h2>Performance Trends</h2>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
+              Historical trends for all tracked metrics
+            </p>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={[...metrics].reverse()}>
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={prepareTrendData()}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="metric_period" />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
+              <YAxis />
               <Tooltip />
               <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="time_saved_hours" stroke="#3b82f6" name="Time Saved (hrs)" />
-              <Line yAxisId="right" type="monotone" dataKey="cost_saved_rands" stroke="#10b981" name="Cost Saved (R)" />
-              <Line yAxisId="left" type="monotone" dataKey="customer_experience_score" stroke="#f59e0b" name="CX Score" />
+              {getAllMetricNames().map((metricName, index) => (
+                <Line
+                  key={metricName}
+                  type="monotone"
+                  dataKey={metricName}
+                  stroke={getColorForIndex(index)}
+                  name={metricName}
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              ))}
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -490,31 +545,43 @@ function ProjectView() {
         {metrics.length > 0 && (
           <div style={{ marginTop: '24px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>Metrics History</h3>
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Period</th>
-                    <th>CX Score</th>
-                    <th>Time Saved</th>
-                    <th>Cost Saved</th>
-                    <th>Revenue</th>
-                    <th>Accuracy</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {metrics.map(metric => (
-                    <tr key={metric.id}>
-                      <td>{metric.metric_period}</td>
-                      <td>{metric.customer_experience_score || '-'}</td>
-                      <td>{metric.time_saved_hours || 0} hrs</td>
-                      <td>R{(metric.cost_saved_rands || 0).toLocaleString()}</td>
-                      <td>R{(metric.revenue_increase_rands || 0).toLocaleString()}</td>
-                      <td>{metric.model_accuracy || '-'}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div>
+              {metrics.map(metric => (
+                <div key={metric.id} style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '8px', borderBottom: '2px solid #3b82f6' }}>
+                    <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#1f2937', margin: 0 }}>
+                      {metric.metric_period}
+                    </h4>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>
+                      Updated: {new Date(metric.modified_at).toLocaleDateString()}
+                    </span>
+                  </div>
+
+                  {metric.additional_metrics && Object.keys(metric.additional_metrics).length > 0 ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '12px' }}>
+                      {Object.entries(metric.additional_metrics).map(([metricName, metricData]) => (
+                        <div key={metricName} style={{ padding: '12px', backgroundColor: 'white', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                          <div style={{ fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>
+                            {metricName}
+                          </div>
+                          <div style={{ fontSize: '24px', fontWeight: '700', color: '#1f2937', marginBottom: '4px' }}>
+                            {metricData.value || '-'}
+                          </div>
+                          {metricData.comments && (
+                            <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #e5e7eb' }}>
+                              {metricData.comments}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '20px', color: '#64748b', fontSize: '14px' }}>
+                      No metrics recorded for this period
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         )}

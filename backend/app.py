@@ -402,7 +402,19 @@ def get_initiative_metrics(initiative_id):
             ORDER BY metric_period DESC
         """, initiative_id)
 
-        metrics = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+        metrics = []
+        for row in cursor.fetchall():
+            metric = dict_from_row(cursor, row)
+            # Parse additional_metrics JSON if present
+            if metric.get('additional_metrics'):
+                try:
+                    import json
+                    metric['additional_metrics'] = json.loads(metric['additional_metrics'])
+                except:
+                    metric['additional_metrics'] = {}
+            else:
+                metric['additional_metrics'] = {}
+            metrics.append(metric)
 
         conn.close()
         return jsonify(metrics)
@@ -435,6 +447,15 @@ def get_initiative_metric_for_period(initiative_id, period):
         logger.error(f"Error fetching metric: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+def convert_to_numeric(value):
+    """Convert value to numeric, return None if empty or invalid"""
+    if value is None or value == '' or value == 'null':
+        return None
+    try:
+        return float(value) if '.' in str(value) else int(value)
+    except (ValueError, TypeError):
+        return None
+
 @app.route('/api/initiatives/<int:initiative_id>/metrics', methods=['POST'])
 def create_initiative_metric(initiative_id):
     """Create or update monthly metrics for an initiative"""
@@ -444,6 +465,26 @@ def create_initiative_metric(initiative_id):
         cursor = conn.cursor()
 
         metric_period = data.get('metric_period')
+
+        # Convert numeric fields properly
+        customer_experience_score = convert_to_numeric(data.get('customer_experience_score'))
+        time_saved_hours = convert_to_numeric(data.get('time_saved_hours'))
+        cost_saved_rands = convert_to_numeric(data.get('cost_saved_rands'))
+        revenue_increase_rands = convert_to_numeric(data.get('revenue_increase_rands'))
+        processed_units = convert_to_numeric(data.get('processed_units'))
+        model_accuracy = convert_to_numeric(data.get('model_accuracy'))
+        user_adoption_rate = convert_to_numeric(data.get('user_adoption_rate'))
+        error_rate = convert_to_numeric(data.get('error_rate'))
+        response_time_ms = convert_to_numeric(data.get('response_time_ms'))
+        data_quality_score = convert_to_numeric(data.get('data_quality_score'))
+        user_satisfaction_score = convert_to_numeric(data.get('user_satisfaction_score'))
+        business_impact_score = convert_to_numeric(data.get('business_impact_score'))
+        innovation_score = convert_to_numeric(data.get('innovation_score'))
+
+        # Handle additional dynamic metrics
+        import json
+        additional_metrics = data.get('additional_metrics', {})
+        additional_metrics_json = json.dumps(additional_metrics) if additional_metrics else None
 
         # Check if metric already exists
         cursor.execute("""
@@ -483,37 +524,39 @@ def create_initiative_metric(initiative_id):
                     business_impact_comments = ?,
                     innovation_score = ?,
                     innovation_comments = ?,
+                    additional_metrics = ?,
                     modified_at = GETDATE(),
                     modified_by_name = ?,
                     modified_by_email = ?
                 WHERE id = ?
             """, (
-                data.get('customer_experience_score'),
+                customer_experience_score,
                 data.get('customer_experience_comments'),
-                data.get('time_saved_hours'),
+                time_saved_hours,
                 data.get('time_saved_comments'),
-                data.get('cost_saved_rands'),
+                cost_saved_rands,
                 data.get('cost_saved_comments'),
-                data.get('revenue_increase_rands'),
+                revenue_increase_rands,
                 data.get('revenue_increase_comments'),
-                data.get('processed_units'),
+                processed_units,
                 data.get('processed_units_comments'),
-                data.get('model_accuracy'),
+                model_accuracy,
                 data.get('model_accuracy_comments'),
-                data.get('user_adoption_rate'),
+                user_adoption_rate,
                 data.get('user_adoption_comments'),
-                data.get('error_rate'),
+                error_rate,
                 data.get('error_rate_comments'),
-                data.get('response_time_ms'),
+                response_time_ms,
                 data.get('response_time_comments'),
-                data.get('data_quality_score'),
+                data_quality_score,
                 data.get('data_quality_comments'),
-                data.get('user_satisfaction_score'),
+                user_satisfaction_score,
                 data.get('user_satisfaction_comments'),
-                data.get('business_impact_score'),
+                business_impact_score,
                 data.get('business_impact_comments'),
-                data.get('innovation_score'),
+                innovation_score,
                 data.get('innovation_comments'),
+                additional_metrics_json,
                 DEFAULT_USER['name'],
                 DEFAULT_USER['email'],
                 existing[0]
@@ -536,37 +579,39 @@ def create_initiative_metric(initiative_id):
                     user_satisfaction_score, user_satisfaction_comments,
                     business_impact_score, business_impact_comments,
                     innovation_score, innovation_comments,
+                    additional_metrics,
                     created_by_name, created_by_email,
                     modified_by_name, modified_by_email
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 initiative_id, metric_period,
-                data.get('customer_experience_score'),
+                customer_experience_score,
                 data.get('customer_experience_comments'),
-                data.get('time_saved_hours'),
+                time_saved_hours,
                 data.get('time_saved_comments'),
-                data.get('cost_saved_rands'),
+                cost_saved_rands,
                 data.get('cost_saved_comments'),
-                data.get('revenue_increase_rands'),
+                revenue_increase_rands,
                 data.get('revenue_increase_comments'),
-                data.get('processed_units'),
+                processed_units,
                 data.get('processed_units_comments'),
-                data.get('model_accuracy'),
+                model_accuracy,
                 data.get('model_accuracy_comments'),
-                data.get('user_adoption_rate'),
+                user_adoption_rate,
                 data.get('user_adoption_comments'),
-                data.get('error_rate'),
+                error_rate,
                 data.get('error_rate_comments'),
-                data.get('response_time_ms'),
+                response_time_ms,
                 data.get('response_time_comments'),
-                data.get('data_quality_score'),
+                data_quality_score,
                 data.get('data_quality_comments'),
-                data.get('user_satisfaction_score'),
+                user_satisfaction_score,
                 data.get('user_satisfaction_comments'),
-                data.get('business_impact_score'),
+                business_impact_score,
                 data.get('business_impact_comments'),
-                data.get('innovation_score'),
+                innovation_score,
                 data.get('innovation_comments'),
+                additional_metrics_json,
                 DEFAULT_USER['name'],
                 DEFAULT_USER['email'],
                 DEFAULT_USER['name'],
@@ -643,6 +688,64 @@ def create_field_option():
         return jsonify({'id': option_id, 'message': 'Field option created successfully'}), 201
     except Exception as e:
         logger.error(f"Error creating field option: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ===============================================================================
+# Custom Metrics Endpoints
+# ===============================================================================
+
+@app.route('/api/custom-metrics', methods=['GET'])
+def get_custom_metrics():
+    """Get all active custom metrics"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT * FROM custom_metrics
+            WHERE is_active = 1
+            ORDER BY metric_name
+        """)
+
+        metrics = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify(metrics)
+    except Exception as e:
+        logger.error(f"Error fetching custom metrics: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/custom-metrics', methods=['POST'])
+def create_custom_metric():
+    """Create a new custom metric"""
+    try:
+        data = request.json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO custom_metrics (
+                metric_name, metric_description, metric_type, unit_of_measure,
+                created_by, modified_by
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            data.get('metric_name'),
+            data.get('metric_description'),
+            data.get('metric_type'),
+            data.get('unit_of_measure'),
+            DEFAULT_USER['email'],
+            DEFAULT_USER['email']
+        ))
+
+        cursor.execute("SELECT @@IDENTITY")
+        metric_id = cursor.fetchone()[0]
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'id': metric_id, 'message': 'Custom metric created successfully'}), 201
+    except Exception as e:
+        logger.error(f"Error creating custom metric: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/field-options/<int:option_id>', methods=['PUT'])

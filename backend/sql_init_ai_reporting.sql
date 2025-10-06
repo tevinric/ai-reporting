@@ -141,6 +141,9 @@ CREATE TABLE dbo.monthly_metrics (
     innovation_score DECIMAL(5,2), -- Scale 1-10
     innovation_comments NVARCHAR(MAX),
 
+    -- Dynamic metrics (stored as JSON for flexibility)
+    additional_metrics NVARCHAR(MAX), -- JSON object for custom metrics
+
     -- Audit fields
     created_at DATETIME DEFAULT GETDATE(),
     created_by_name NVARCHAR(255),
