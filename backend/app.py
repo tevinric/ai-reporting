@@ -1712,7 +1712,7 @@ def roi_assistant():
         data = request.json
 
         # Build the prompt from user responses
-        prompt = f"""You are an ROI measurement expert for a South African insurance company.
+        prompt = f"""You are an ROI measurement expert for TIH AI and RPA initiatives.
 A user is planning to implement an initiative and needs guidance on which ROI metrics to use and how to measure them.
 
 Here is the information provided about the initiative:
@@ -1753,7 +1753,8 @@ IMPORTANT GUIDELINES:
 - Use clear, non-technical language that anyone can understand
 - Consider the South African insurance market context in your recommendations
 - Be specific and provide concrete examples where possible
-- Format your response clearly with headers and bullet points for readability"""
+- Format your response clearly with headers and bullet points for readability
+- Your response must get to the point. Respond with guidance and dont start with terms such as 'Certainly' or 'Sure I can help with that...'"""
 
         # Call OpenAI API
         response = openai_client.chat.completions.create(
@@ -1761,7 +1762,8 @@ IMPORTANT GUIDELINES:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an expert ROI consultant for insurance companies in South Africa. You provide clear, professional, actionable guidance on measuring return on investment for AI and RPA initiatives. You never use emojis and always write in a professional manner suitable for executive reporting."
+                    "content": """You are an expert ROI consultant for TIH that operates in South Africa. You provide clear, professional, actionable guidance on how users can measure return on investment for AI and RPA initiatives. You never use emojis and always write in a professional manner suitable for executive reporting.
+                                  Your reponse must provide ROI metrics that the user must consider to for their initiative. Provide clear guidelines for the user to follow with appropiate calculation guides."""
                 },
                 {
                     "role": "user",
