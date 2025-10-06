@@ -447,6 +447,16 @@ def get_initiative(initiative_id):
             if initiative.get(field) and isinstance(initiative[field], str):
                 initiative[field] = initiative[field].strip()
 
+        # Convert date fields to ISO format strings if they exist
+        import datetime
+        date_fields = ['start_date', 'expected_completion_date', 'actual_completion_date', 'featured_month',
+                      'created_at', 'modified_at', 'pinned_at']
+        for field in date_fields:
+            if initiative.get(field) and isinstance(initiative[field], (datetime.date, datetime.datetime)):
+                initiative[field] = initiative[field].isoformat()
+
+        logger.info(f"Fetching initiative {initiative_id} - returning date values: start_date={initiative.get('start_date')}, expected_completion_date={initiative.get('expected_completion_date')}")
+
         # Get departments
         cursor.execute("""
             SELECT department FROM initiative_departments
@@ -535,6 +545,17 @@ def update_initiative(initiative_id):
                 return None
             return value.strip() if isinstance(value, str) else value
 
+        # Log incoming date values for debugging
+        logger.info(f"Updating initiative {initiative_id} - received date values: start_date={data.get('start_date')}, expected_completion_date={data.get('expected_completion_date')}, actual_completion_date={data.get('actual_completion_date')}")
+
+        # Process date values
+        start_date_value = convert_to_date(data.get('start_date'))
+        expected_date_value = convert_to_date(data.get('expected_completion_date'))
+        actual_date_value = convert_to_date(data.get('actual_completion_date'))
+        featured_month_value = convert_to_date(data.get('featured_month'))
+
+        logger.info(f"Processed date values: start_date={start_date_value}, expected_completion_date={expected_date_value}, actual_completion_date={actual_date_value}")
+
         # Update initiative - use the provided values or None if empty
         cursor.execute("""
             UPDATE initiatives SET
@@ -572,9 +593,9 @@ def update_initiative(initiative_id):
             data.get('percentage_complete'),
             process_string(data.get('process_owner')),
             process_string(data.get('business_owner')),
-            convert_to_date(data.get('start_date')),
-            convert_to_date(data.get('expected_completion_date')),
-            convert_to_date(data.get('actual_completion_date')),
+            start_date_value,
+            expected_date_value,
+            actual_date_value,
             process_string(data.get('priority')),
             process_string(data.get('risk_level')),
             process_string(data.get('technology_stack')),
@@ -584,7 +605,7 @@ def update_initiative(initiative_id):
             process_string(data.get('health_status')),
             process_string(data.get('initiative_type')),
             1 if data.get('is_featured') else 0,
-            convert_to_date(data.get('featured_month')),
+            featured_month_value,
             DEFAULT_USER['name'],
             DEFAULT_USER['email'],
             initiative_id
@@ -603,6 +624,7 @@ def update_initiative(initiative_id):
         conn.commit()
         conn.close()
 
+        logger.info(f"Successfully updated initiative {initiative_id}")
         return jsonify({'message': 'Initiative updated successfully'})
     except Exception as e:
         logger.error(f"Error updating initiative: {str(e)}")

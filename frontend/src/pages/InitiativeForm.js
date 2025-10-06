@@ -110,11 +110,34 @@ function InitiativeForm() {
       const response = await getInitiativeById(id);
       const data = response.data;
 
+      // Helper function to format date strings for date inputs
+      const formatDateForInput = (dateValue) => {
+        if (!dateValue) return '';
+        // Handle both date-only (YYYY-MM-DD) and datetime formats (YYYY-MM-DDTHH:MM:SS)
+        const dateStr = String(dateValue);
+        if (dateStr.includes('T')) {
+          return dateStr.split('T')[0];
+        }
+        // Already in YYYY-MM-DD format or just take first 10 chars
+        return dateStr.substring(0, 10);
+      };
+
       // Format dates for input fields
-      if (data.start_date) data.start_date = data.start_date.split('T')[0];
-      if (data.expected_completion_date) data.expected_completion_date = data.expected_completion_date.split('T')[0];
-      if (data.actual_completion_date) data.actual_completion_date = data.actual_completion_date.split('T')[0];
-      if (data.featured_month) data.featured_month = data.featured_month.split('T')[0].substring(0, 7); // Format to YYYY-MM
+      const formattedStartDate = formatDateForInput(data.start_date);
+      const formattedExpectedDate = formatDateForInput(data.expected_completion_date);
+      const formattedActualDate = formatDateForInput(data.actual_completion_date);
+      const formattedFeaturedMonth = data.featured_month ? formatDateForInput(data.featured_month).substring(0, 7) : '';
+
+      console.log('Loading initiative - dates from DB:', {
+        start_date: data.start_date,
+        expected_completion_date: data.expected_completion_date,
+        actual_completion_date: data.actual_completion_date
+      });
+      console.log('Formatted dates for form:', {
+        start_date: formattedStartDate,
+        expected_completion_date: formattedExpectedDate,
+        actual_completion_date: formattedActualDate
+      });
 
       // Ensure all fields exist with defaults
       setFormData({
@@ -126,9 +149,9 @@ function InitiativeForm() {
         percentage_complete: data.percentage_complete ?? 0,
         process_owner: data.process_owner || '',
         business_owner: data.business_owner || '',
-        start_date: data.start_date || '',
-        expected_completion_date: data.expected_completion_date || '',
-        actual_completion_date: data.actual_completion_date || '',
+        start_date: formattedStartDate,
+        expected_completion_date: formattedExpectedDate,
+        actual_completion_date: formattedActualDate,
         priority: data.priority || '',
         risk_level: data.risk_level || '',
         technology_stack: data.technology_stack || '',
@@ -138,7 +161,7 @@ function InitiativeForm() {
         health_status: data.health_status || 'Green',
         initiative_type: data.initiative_type || 'Internal AI',
         is_featured: data.is_featured ?? false,
-        featured_month: data.featured_month || '',
+        featured_month: formattedFeaturedMonth,
         departments: data.departments || []
       });
     } catch (err) {
@@ -175,14 +198,6 @@ function InitiativeForm() {
 
       // Format the data before sending to backend
       const formattedData = {
-        ...formData,
-        // Convert empty strings to null for numeric fields
-        percentage_complete: formData.percentage_complete === '' ? 0 : Number(formData.percentage_complete),
-        team_size: formData.team_size === '' ? null : Number(formData.team_size),
-        budget_allocated: formData.budget_allocated === '' ? null : Number(formData.budget_allocated),
-        budget_spent: formData.budget_spent === '' ? null : Number(formData.budget_spent),
-        // Ensure boolean is properly formatted
-        is_featured: Boolean(formData.is_featured),
         // Trim all string fields
         use_case_name: formData.use_case_name?.trim() || '',
         description: formData.description?.trim() || '',
@@ -195,8 +210,29 @@ function InitiativeForm() {
         risk_level: formData.risk_level?.trim() || '',
         technology_stack: formData.technology_stack?.trim() || '',
         health_status: formData.health_status?.trim() || 'Green',
-        initiative_type: formData.initiative_type?.trim() || 'Internal AI'
+        initiative_type: formData.initiative_type?.trim() || 'Internal AI',
+        // Convert empty strings to null for numeric fields
+        percentage_complete: formData.percentage_complete === '' ? 0 : Number(formData.percentage_complete),
+        team_size: formData.team_size === '' ? null : Number(formData.team_size),
+        budget_allocated: formData.budget_allocated === '' ? null : Number(formData.budget_allocated),
+        budget_spent: formData.budget_spent === '' ? null : Number(formData.budget_spent),
+        // Ensure boolean is properly formatted
+        is_featured: Boolean(formData.is_featured),
+        // Explicitly preserve date fields - ensure they maintain their values
+        start_date: formData.start_date || '',
+        expected_completion_date: formData.expected_completion_date || '',
+        actual_completion_date: formData.actual_completion_date || '',
+        featured_month: formData.featured_month || '',
+        // Preserve departments array
+        departments: formData.departments || []
       };
+
+      console.log('Submitting initiative - date values:', {
+        start_date: formattedData.start_date,
+        expected_completion_date: formattedData.expected_completion_date,
+        actual_completion_date: formattedData.actual_completion_date,
+        isEdit: isEdit
+      });
 
       if (isEdit) {
         await updateInitiative(id, formattedData);
@@ -211,7 +247,7 @@ function InitiativeForm() {
       }, 1500);
     } catch (err) {
       setError('Failed to save initiative');
-      console.error(err);
+      console.error('Error saving initiative:', err);
     } finally {
       setLoading(false);
     }
