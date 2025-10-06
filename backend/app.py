@@ -1,0 +1,843 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import pyodbc
+import os
+from datetime import datetime
+from typing import List, Dict, Any, Optional
+import logging
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+app = Flask(__name__)
+CORS(app)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Database configuration
+DB_CONFIG = {
+    'server': os.environ.get('DB_SERVER', 'localhost'),
+    'database': os.environ.get('DB_DATABASE', 'AIReporting'),
+    'username': os.environ.get('DB_USERNAME', ''),
+    'password': os.environ.get('DB_PASSWORD', ''),
+    'driver': os.environ.get('DB_DRIVER', '{ODBC Driver 17 for SQL Server}')
+}
+
+# Default user for testing
+DEFAULT_USER = {
+    'name': 'Tester',
+    'email': 'test@tester.com'
+}
+
+def get_db_connection():
+    """Create and return a database connection"""
+    try:
+        if DB_CONFIG['username']:
+            conn_string = f"DRIVER={DB_CONFIG['driver']};SERVER={DB_CONFIG['server']};DATABASE={DB_CONFIG['database']};UID={DB_CONFIG['username']};PWD={DB_CONFIG['password']}"
+        else:
+            # Use Windows Authentication
+            conn_string = f"DRIVER={DB_CONFIG['driver']};SERVER={DB_CONFIG['server']};DATABASE={DB_CONFIG['database']};Trusted_Connection=yes"
+
+        conn = pyodbc.connect(conn_string)
+        return conn
+    except Exception as e:
+        logger.error(f"Database connection error: {str(e)}")
+        raise
+
+def dict_from_row(cursor, row):
+    """Convert database row to dictionary"""
+    columns = [column[0] for column in cursor.description]
+    return dict(zip(columns, row))
+
+# ==================== Health Check ====================
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    try:
+        conn = get_db_connection()
+        conn.close()
+        return jsonify({'status': 'healthy', 'database': 'connected'})
+    except Exception as e:
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
+
+# ==================== Dashboard Statistics ====================
+
+@app.route('/api/dashboard/stats', methods=['GET'])
+def get_dashboard_stats():
+    """Get dashboard statistics"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get overall statistics
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total_initiatives,
+                COUNT(CASE WHEN status = 'Ideation' THEN 1 END) as ideation_count,
+                COUNT(CASE WHEN status = 'In Progress' THEN 1 END) as in_progress_count,
+                COUNT(CASE WHEN status = 'Live (Complete)' THEN 1 END) as completed_count,
+                AVG(percentage_complete) as avg_completion
+            FROM initiatives
+        """)
+        row = cursor.fetchone()
+        stats = dict_from_row(cursor, row)
+
+        # Get initiatives by department
+        cursor.execute("""
+            SELECT department, COUNT(*) as count
+            FROM initiative_departments id
+            JOIN initiatives i ON id.initiative_id = i.id
+            GROUP BY department
+            ORDER BY count DESC
+        """)
+        departments = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+        stats['by_department'] = departments
+
+        # Get initiatives by benefit
+        cursor.execute("""
+            SELECT benefit, COUNT(*) as count
+            FROM initiatives
+            WHERE benefit IS NOT NULL
+            GROUP BY benefit
+            ORDER BY count DESC
+        """)
+        benefits = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+        stats['by_benefit'] = benefits
+
+        conn.close()
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"Error fetching dashboard stats: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dashboard/monthly-trends', methods=['GET'])
+def get_monthly_trends():
+    """Get monthly trends for key metrics"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                metric_period,
+                COUNT(DISTINCT initiative_id) as active_initiatives,
+                SUM(time_saved_hours) as total_time_saved,
+                SUM(cost_saved_rands) as total_cost_saved,
+                SUM(revenue_increase_rands) as total_revenue_increase,
+                AVG(customer_experience_score) as avg_cx_score
+            FROM monthly_metrics
+            GROUP BY metric_period
+            ORDER BY metric_period DESC
+        """)
+
+        trends = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify(trends)
+    except Exception as e:
+        logger.error(f"Error fetching monthly trends: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ==================== Initiatives CRUD ====================
+
+@app.route('/api/initiatives', methods=['GET'])
+def get_initiatives():
+    """Get all initiatives with optional filtering"""
+    try:
+        status = request.args.get('status')
+        department = request.args.get('department')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        query = "SELECT * FROM initiatives WHERE 1=1"
+        params = []
+
+        if status:
+            query += " AND status = ?"
+            params.append(status)
+
+        if department:
+            query += " AND id IN (SELECT initiative_id FROM initiative_departments WHERE department = ?)"
+            params.append(department)
+
+        query += " ORDER BY modified_at DESC"
+
+        cursor.execute(query, params)
+        initiatives = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+
+        # Get departments for each initiative
+        for initiative in initiatives:
+            cursor.execute("""
+                SELECT department FROM initiative_departments
+                WHERE initiative_id = ?
+            """, initiative['id'])
+            initiative['departments'] = [row[0] for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify(initiatives)
+    except Exception as e:
+        logger.error(f"Error fetching initiatives: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/initiatives/<int:initiative_id>', methods=['GET'])
+def get_initiative(initiative_id):
+    """Get a specific initiative by ID"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM initiatives WHERE id = ?", initiative_id)
+        row = cursor.fetchone()
+
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Initiative not found'}), 404
+
+        initiative = dict_from_row(cursor, row)
+
+        # Get departments
+        cursor.execute("""
+            SELECT department FROM initiative_departments
+            WHERE initiative_id = ?
+        """, initiative_id)
+        initiative['departments'] = [row[0] for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify(initiative)
+    except Exception as e:
+        logger.error(f"Error fetching initiative: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/initiatives', methods=['POST'])
+def create_initiative():
+    """Create a new initiative"""
+    try:
+        data = request.json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Insert initiative
+        cursor.execute("""
+            INSERT INTO initiatives (
+                use_case_name, description, benefit, strategic_objective, status,
+                percentage_complete, process_owner, business_owner, start_date,
+                expected_completion_date, priority, risk_level, technology_stack,
+                team_size, budget_allocated, created_by_name, created_by_email,
+                modified_by_name, modified_by_email
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data.get('use_case_name'),
+            data.get('description'),
+            data.get('benefit'),
+            data.get('strategic_objective'),
+            data.get('status', 'Ideation'),
+            data.get('percentage_complete', 0),
+            data.get('process_owner'),
+            data.get('business_owner'),
+            data.get('start_date'),
+            data.get('expected_completion_date'),
+            data.get('priority'),
+            data.get('risk_level'),
+            data.get('technology_stack'),
+            data.get('team_size'),
+            data.get('budget_allocated'),
+            DEFAULT_USER['name'],
+            DEFAULT_USER['email'],
+            DEFAULT_USER['name'],
+            DEFAULT_USER['email']
+        ))
+
+        # Get the inserted ID
+        cursor.execute("SELECT @@IDENTITY")
+        initiative_id = cursor.fetchone()[0]
+
+        # Insert departments
+        departments = data.get('departments', [])
+        for dept in departments:
+            cursor.execute("""
+                INSERT INTO initiative_departments (initiative_id, department)
+                VALUES (?, ?)
+            """, (initiative_id, dept))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'id': initiative_id, 'message': 'Initiative created successfully'}), 201
+    except Exception as e:
+        logger.error(f"Error creating initiative: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/initiatives/<int:initiative_id>', methods=['PUT'])
+def update_initiative(initiative_id):
+    """Update an existing initiative"""
+    try:
+        data = request.json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Update initiative
+        cursor.execute("""
+            UPDATE initiatives SET
+                use_case_name = ?,
+                description = ?,
+                benefit = ?,
+                strategic_objective = ?,
+                status = ?,
+                percentage_complete = ?,
+                process_owner = ?,
+                business_owner = ?,
+                start_date = ?,
+                expected_completion_date = ?,
+                actual_completion_date = ?,
+                priority = ?,
+                risk_level = ?,
+                technology_stack = ?,
+                team_size = ?,
+                budget_allocated = ?,
+                budget_spent = ?,
+                is_featured = ?,
+                featured_month = ?,
+                modified_at = GETDATE(),
+                modified_by_name = ?,
+                modified_by_email = ?
+            WHERE id = ?
+        """, (
+            data.get('use_case_name'),
+            data.get('description'),
+            data.get('benefit'),
+            data.get('strategic_objective'),
+            data.get('status'),
+            data.get('percentage_complete'),
+            data.get('process_owner'),
+            data.get('business_owner'),
+            data.get('start_date'),
+            data.get('expected_completion_date'),
+            data.get('actual_completion_date'),
+            data.get('priority'),
+            data.get('risk_level'),
+            data.get('technology_stack'),
+            data.get('team_size'),
+            data.get('budget_allocated'),
+            data.get('budget_spent'),
+            data.get('is_featured', 0),
+            data.get('featured_month'),
+            DEFAULT_USER['name'],
+            DEFAULT_USER['email'],
+            initiative_id
+        ))
+
+        # Update departments
+        cursor.execute("DELETE FROM initiative_departments WHERE initiative_id = ?", initiative_id)
+        departments = data.get('departments', [])
+        for dept in departments:
+            cursor.execute("""
+                INSERT INTO initiative_departments (initiative_id, department)
+                VALUES (?, ?)
+            """, (initiative_id, dept))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Initiative updated successfully'})
+    except Exception as e:
+        logger.error(f"Error updating initiative: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/initiatives/<int:initiative_id>', methods=['DELETE'])
+def delete_initiative(initiative_id):
+    """Delete an initiative"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("DELETE FROM initiatives WHERE id = ?", initiative_id)
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Initiative deleted successfully'})
+    except Exception as e:
+        logger.error(f"Error deleting initiative: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ==================== Monthly Metrics ====================
+
+@app.route('/api/initiatives/<int:initiative_id>/metrics', methods=['GET'])
+def get_initiative_metrics(initiative_id):
+    """Get all monthly metrics for an initiative"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT * FROM monthly_metrics
+            WHERE initiative_id = ?
+            ORDER BY metric_period DESC
+        """, initiative_id)
+
+        metrics = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify(metrics)
+    except Exception as e:
+        logger.error(f"Error fetching metrics: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/initiatives/<int:initiative_id>/metrics/<period>', methods=['GET'])
+def get_initiative_metric_for_period(initiative_id, period):
+    """Get metrics for a specific period"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT * FROM monthly_metrics
+            WHERE initiative_id = ? AND metric_period = ?
+        """, (initiative_id, period))
+
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Metrics not found for this period'}), 404
+
+        metric = dict_from_row(cursor, row)
+
+        conn.close()
+        return jsonify(metric)
+    except Exception as e:
+        logger.error(f"Error fetching metric: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/initiatives/<int:initiative_id>/metrics', methods=['POST'])
+def create_initiative_metric(initiative_id):
+    """Create or update monthly metrics for an initiative"""
+    try:
+        data = request.json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        metric_period = data.get('metric_period')
+
+        # Check if metric already exists
+        cursor.execute("""
+            SELECT id FROM monthly_metrics
+            WHERE initiative_id = ? AND metric_period = ?
+        """, (initiative_id, metric_period))
+
+        existing = cursor.fetchone()
+
+        if existing:
+            # Update existing metric
+            cursor.execute("""
+                UPDATE monthly_metrics SET
+                    customer_experience_score = ?,
+                    customer_experience_comments = ?,
+                    time_saved_hours = ?,
+                    time_saved_comments = ?,
+                    cost_saved_rands = ?,
+                    cost_saved_comments = ?,
+                    revenue_increase_rands = ?,
+                    revenue_increase_comments = ?,
+                    processed_units = ?,
+                    processed_units_comments = ?,
+                    model_accuracy = ?,
+                    model_accuracy_comments = ?,
+                    user_adoption_rate = ?,
+                    user_adoption_comments = ?,
+                    error_rate = ?,
+                    error_rate_comments = ?,
+                    response_time_ms = ?,
+                    response_time_comments = ?,
+                    data_quality_score = ?,
+                    data_quality_comments = ?,
+                    user_satisfaction_score = ?,
+                    user_satisfaction_comments = ?,
+                    business_impact_score = ?,
+                    business_impact_comments = ?,
+                    innovation_score = ?,
+                    innovation_comments = ?,
+                    modified_at = GETDATE(),
+                    modified_by_name = ?,
+                    modified_by_email = ?
+                WHERE id = ?
+            """, (
+                data.get('customer_experience_score'),
+                data.get('customer_experience_comments'),
+                data.get('time_saved_hours'),
+                data.get('time_saved_comments'),
+                data.get('cost_saved_rands'),
+                data.get('cost_saved_comments'),
+                data.get('revenue_increase_rands'),
+                data.get('revenue_increase_comments'),
+                data.get('processed_units'),
+                data.get('processed_units_comments'),
+                data.get('model_accuracy'),
+                data.get('model_accuracy_comments'),
+                data.get('user_adoption_rate'),
+                data.get('user_adoption_comments'),
+                data.get('error_rate'),
+                data.get('error_rate_comments'),
+                data.get('response_time_ms'),
+                data.get('response_time_comments'),
+                data.get('data_quality_score'),
+                data.get('data_quality_comments'),
+                data.get('user_satisfaction_score'),
+                data.get('user_satisfaction_comments'),
+                data.get('business_impact_score'),
+                data.get('business_impact_comments'),
+                data.get('innovation_score'),
+                data.get('innovation_comments'),
+                DEFAULT_USER['name'],
+                DEFAULT_USER['email'],
+                existing[0]
+            ))
+        else:
+            # Insert new metric
+            cursor.execute("""
+                INSERT INTO monthly_metrics (
+                    initiative_id, metric_period,
+                    customer_experience_score, customer_experience_comments,
+                    time_saved_hours, time_saved_comments,
+                    cost_saved_rands, cost_saved_comments,
+                    revenue_increase_rands, revenue_increase_comments,
+                    processed_units, processed_units_comments,
+                    model_accuracy, model_accuracy_comments,
+                    user_adoption_rate, user_adoption_comments,
+                    error_rate, error_rate_comments,
+                    response_time_ms, response_time_comments,
+                    data_quality_score, data_quality_comments,
+                    user_satisfaction_score, user_satisfaction_comments,
+                    business_impact_score, business_impact_comments,
+                    innovation_score, innovation_comments,
+                    created_by_name, created_by_email,
+                    modified_by_name, modified_by_email
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                initiative_id, metric_period,
+                data.get('customer_experience_score'),
+                data.get('customer_experience_comments'),
+                data.get('time_saved_hours'),
+                data.get('time_saved_comments'),
+                data.get('cost_saved_rands'),
+                data.get('cost_saved_comments'),
+                data.get('revenue_increase_rands'),
+                data.get('revenue_increase_comments'),
+                data.get('processed_units'),
+                data.get('processed_units_comments'),
+                data.get('model_accuracy'),
+                data.get('model_accuracy_comments'),
+                data.get('user_adoption_rate'),
+                data.get('user_adoption_comments'),
+                data.get('error_rate'),
+                data.get('error_rate_comments'),
+                data.get('response_time_ms'),
+                data.get('response_time_comments'),
+                data.get('data_quality_score'),
+                data.get('data_quality_comments'),
+                data.get('user_satisfaction_score'),
+                data.get('user_satisfaction_comments'),
+                data.get('business_impact_score'),
+                data.get('business_impact_comments'),
+                data.get('innovation_score'),
+                data.get('innovation_comments'),
+                DEFAULT_USER['name'],
+                DEFAULT_USER['email'],
+                DEFAULT_USER['name'],
+                DEFAULT_USER['email']
+            ))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Metrics saved successfully'}), 201
+    except Exception as e:
+        logger.error(f"Error saving metrics: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ==================== Field Options (Management View) ====================
+
+@app.route('/api/field-options', methods=['GET'])
+def get_field_options():
+    """Get all field options grouped by field name"""
+    try:
+        field_name = request.args.get('field_name')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        if field_name:
+            cursor.execute("""
+                SELECT * FROM field_options
+                WHERE field_name = ? AND is_active = 1
+                ORDER BY display_order, option_value
+            """, field_name)
+        else:
+            cursor.execute("""
+                SELECT * FROM field_options
+                WHERE is_active = 1
+                ORDER BY field_name, display_order, option_value
+            """)
+
+        options = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify(options)
+    except Exception as e:
+        logger.error(f"Error fetching field options: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/field-options', methods=['POST'])
+def create_field_option():
+    """Create a new field option"""
+    try:
+        data = request.json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO field_options (
+                field_name, option_value, display_order,
+                created_by, modified_by
+            ) VALUES (?, ?, ?, ?, ?)
+        """, (
+            data.get('field_name'),
+            data.get('option_value'),
+            data.get('display_order', 0),
+            DEFAULT_USER['email'],
+            DEFAULT_USER['email']
+        ))
+
+        cursor.execute("SELECT @@IDENTITY")
+        option_id = cursor.fetchone()[0]
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'id': option_id, 'message': 'Field option created successfully'}), 201
+    except Exception as e:
+        logger.error(f"Error creating field option: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/field-options/<int:option_id>', methods=['PUT'])
+def update_field_option(option_id):
+    """Update a field option"""
+    try:
+        data = request.json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        old_value = data.get('old_value')
+        new_value = data.get('option_value')
+        field_name = data.get('field_name')
+
+        # Update the field option
+        cursor.execute("""
+            UPDATE field_options SET
+                option_value = ?,
+                display_order = ?,
+                modified_at = GETDATE(),
+                modified_by = ?
+            WHERE id = ?
+        """, (
+            new_value,
+            data.get('display_order', 0),
+            DEFAULT_USER['email'],
+            option_id
+        ))
+
+        # Update all initiatives using this option
+        if old_value and new_value and old_value != new_value:
+            if field_name == 'benefit':
+                cursor.execute("UPDATE initiatives SET benefit = ? WHERE benefit = ?", (new_value, old_value))
+            elif field_name == 'strategic_objective':
+                cursor.execute("UPDATE initiatives SET strategic_objective = ? WHERE strategic_objective = ?", (new_value, old_value))
+            elif field_name == 'status':
+                cursor.execute("UPDATE initiatives SET status = ? WHERE status = ?", (new_value, old_value))
+            elif field_name == 'priority':
+                cursor.execute("UPDATE initiatives SET priority = ? WHERE priority = ?", (new_value, old_value))
+            elif field_name == 'risk_level':
+                cursor.execute("UPDATE initiatives SET risk_level = ? WHERE risk_level = ?", (new_value, old_value))
+            elif field_name == 'department':
+                cursor.execute("UPDATE initiative_departments SET department = ? WHERE department = ?", (new_value, old_value))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Field option updated successfully'})
+    except Exception as e:
+        logger.error(f"Error updating field option: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/field-options/<int:option_id>', methods=['DELETE'])
+def delete_field_option(option_id):
+    """Soft delete a field option"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Soft delete - just mark as inactive
+        cursor.execute("""
+            UPDATE field_options SET
+                is_active = 0,
+                modified_at = GETDATE(),
+                modified_by = ?
+            WHERE id = ?
+        """, (DEFAULT_USER['email'], option_id))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Field option deleted successfully'})
+    except Exception as e:
+        logger.error(f"Error deleting field option: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ==================== Custom Metrics Management ====================
+
+@app.route('/api/custom-metrics', methods=['GET'])
+def get_custom_metrics():
+    """Get all custom metrics"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT * FROM custom_metrics
+            WHERE is_active = 1
+            ORDER BY metric_name
+        """)
+
+        metrics = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify(metrics)
+    except Exception as e:
+        logger.error(f"Error fetching custom metrics: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/custom-metrics', methods=['POST'])
+def create_custom_metric():
+    """Create a new custom metric"""
+    try:
+        data = request.json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO custom_metrics (
+                metric_name, metric_description, metric_type, unit_of_measure,
+                created_by, modified_by
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            data.get('metric_name'),
+            data.get('metric_description'),
+            data.get('metric_type'),
+            data.get('unit_of_measure'),
+            DEFAULT_USER['email'],
+            DEFAULT_USER['email']
+        ))
+
+        cursor.execute("SELECT @@IDENTITY")
+        metric_id = cursor.fetchone()[0]
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'id': metric_id, 'message': 'Custom metric created successfully'}), 201
+    except Exception as e:
+        logger.error(f"Error creating custom metric: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ==================== Featured Solutions ====================
+
+@app.route('/api/featured-solutions', methods=['GET'])
+def get_featured_solutions():
+    """Get featured solutions for a specific month"""
+    try:
+        month = request.args.get('month')  # Format: YYYY-MM
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        if month:
+            cursor.execute("""
+                SELECT * FROM initiatives
+                WHERE is_featured = 1 AND featured_month = ?
+                ORDER BY modified_at DESC
+            """, month)
+        else:
+            cursor.execute("""
+                SELECT * FROM initiatives
+                WHERE is_featured = 1
+                ORDER BY featured_month DESC, modified_at DESC
+            """)
+
+        solutions = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+
+        # Get departments for each solution
+        for solution in solutions:
+            cursor.execute("""
+                SELECT department FROM initiative_departments
+                WHERE initiative_id = ?
+            """, solution['id'])
+            solution['departments'] = [row[0] for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify(solutions)
+    except Exception as e:
+        logger.error(f"Error fetching featured solutions: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ==================== Autocomplete / Suggestions ====================
+
+@app.route('/api/suggestions/process-owners', methods=['GET'])
+def get_process_owner_suggestions():
+    """Get unique process owners for autocomplete"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT DISTINCT process_owner
+            FROM initiatives
+            WHERE process_owner IS NOT NULL
+            ORDER BY process_owner
+        """)
+
+        owners = [row[0] for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify(owners)
+    except Exception as e:
+        logger.error(f"Error fetching process owners: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/suggestions/business-owners', methods=['GET'])
+def get_business_owner_suggestions():
+    """Get unique business owners for autocomplete"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT DISTINCT business_owner
+            FROM initiatives
+            WHERE business_owner IS NOT NULL
+            ORDER BY business_owner
+        """)
+
+        owners = [row[0] for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify(owners)
+    except Exception as e:
+        logger.error(f"Error fetching business owners: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8000, debug=True)
