@@ -186,23 +186,24 @@ function MetricsModal({ initiative, onClose }) {
             <form onSubmit={handleSubmit} style={{ marginBottom: '24px', padding: '20px', backgroundColor: '#f9fafb', borderRadius: '6px' }}>
               <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>Add Metrics</h3>
 
-              <div className="form-group">
+              <div className="form-group" style={{ textAlign: 'left' }}>
                 <label>Reporting Period (YYYY-MM) *</label>
                 <input
                   type="month"
                   value={formData.metric_period}
                   onChange={(e) => setFormData({ ...formData, metric_period: e.target.value })}
                   required
+                  style={{ marginLeft: '8px' }}
                 />
               </div>
 
-              <div className="form-group" style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Select Metrics to Track</label>
+              <div className="form-group" style={{ marginBottom: '12px', textAlign: 'left' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600' }}>Select Metrics to Track</label>
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-                  gap: '8px',
-                  padding: '12px',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                  gap: '4px',
+                  padding: '8px',
                   backgroundColor: 'white',
                   borderRadius: '6px',
                   border: '1px solid #d1d5db'
@@ -213,8 +214,8 @@ function MetricsModal({ initiative, onClose }) {
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px',
-                        padding: '6px',
+                        gap: '6px',
+                        padding: '4px',
                         cursor: 'pointer',
                         borderRadius: '4px',
                         transition: 'background-color 0.2s'
@@ -228,10 +229,10 @@ function MetricsModal({ initiative, onClose }) {
                         onChange={() => handleMetricSelection(metric)}
                         style={{ cursor: 'pointer' }}
                       />
-                      <span style={{ fontSize: '14px' }}>
+                      <span style={{ fontSize: '13px', textAlign: 'left' }}>
                         {metric.metric_name}
                         {metric.unit_of_measure && (
-                          <span style={{ color: '#64748b', fontSize: '12px' }}> ({metric.unit_of_measure})</span>
+                          <span style={{ color: '#64748b', fontSize: '11px' }}> ({metric.unit_of_measure})</span>
                         )}
                       </span>
                     </label>
@@ -240,18 +241,18 @@ function MetricsModal({ initiative, onClose }) {
               </div>
 
               {selectedMetrics.length > 0 && (
-                <div style={{ marginTop: '20px' }}>
-                  <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#374151' }}>
+                <div style={{ marginTop: '12px' }}>
+                  <h4 style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#374151', textAlign: 'left' }}>
                     Enter Metric Values
                   </h4>
                   {selectedMetrics.map(metric => (
-                    <div key={metric.id} style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid #e5e7eb' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
-                        <div className="form-group">
+                    <div key={metric.id} style={{ marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid #e5e7eb' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '8px', alignItems: 'center' }}>
+                        <div className="form-group" style={{ textAlign: 'left' }}>
                           <label>
                             {metric.metric_name}
                             {metric.unit_of_measure && (
-                              <span style={{ color: '#64748b', fontSize: '12px' }}> ({metric.unit_of_measure})</span>
+                              <span style={{ color: '#64748b', fontSize: '11px' }}> ({metric.unit_of_measure})</span>
                             )}
                           </label>
                           <input
@@ -260,18 +261,20 @@ function MetricsModal({ initiative, onClose }) {
                             onChange={(e) => updateMetricValue(metric.metric_name, 'value', e.target.value)}
                             step="0.01"
                             placeholder={`Enter ${metric.metric_name.toLowerCase()}`}
+                            style={{ marginTop: '2px', width: '100%' }}
                           />
                           {metric.metric_description && (
-                            <small style={{ fontSize: '11px', color: '#64748b' }}>{metric.metric_description}</small>
+                            <small style={{ fontSize: '10px', color: '#64748b' }}>{metric.metric_description}</small>
                           )}
                         </div>
-                        <div className="form-group">
+                        <div className="form-group" style={{ textAlign: 'left' }}>
                           <label>Comments</label>
                           <textarea
                             value={formData.additional_metrics[metric.metric_name]?.comments || ''}
                             onChange={(e) => updateMetricValue(metric.metric_name, 'comments', e.target.value)}
                             rows="2"
                             placeholder="Add context or notes"
+                            style={{ marginTop: '2px', width: '100%' }}
                           />
                         </div>
                       </div>
@@ -283,7 +286,7 @@ function MetricsModal({ initiative, onClose }) {
               <button
                 type="submit"
                 className="btn btn-success"
-                style={{ marginTop: '12px' }}
+                style={{ marginTop: '8px' }}
                 disabled={selectedMetrics.length === 0}
               >
                 <Save size={18} />
@@ -292,113 +295,123 @@ function MetricsModal({ initiative, onClose }) {
             </form>
           )}
 
-          {loading ? (
-            <div className="loading">Loading metrics...</div>
-          ) : metrics.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-              <BarChart3 size={48} style={{ opacity: 0.3, marginBottom: '12px' }} />
-              <p>No metrics recorded yet</p>
-            </div>
-          ) : (
-            <div>
-              {metrics.map(metric => (
-                <div key={metric.id} style={{ marginBottom: '20px', padding: '16px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '8px', borderBottom: '2px solid #3b82f6' }}>
-                    <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#1f2937', margin: 0 }}>
-                      {metric.metric_period}
-                    </h4>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ fontSize: '12px', color: '#64748b' }}>
-                        Updated: {new Date(metric.modified_at).toLocaleDateString()}
-                      </span>
-                      <button
-                        onClick={() => handleDeletePeriod(metric.metric_period)}
-                        className="btn btn-danger"
-                        style={{ padding: '4px 8px', fontSize: '12px' }}
-                        title="Delete entire period"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {metric.additional_metrics && Object.keys(metric.additional_metrics).length > 0 ? (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
-                      {Object.entries(metric.additional_metrics).map(([metricName, metricData]) => (
-                        <div key={metricName} style={{ padding: '12px', backgroundColor: '#f9fafb', borderRadius: '6px', position: 'relative' }}>
-                          {editingMetric && editingMetric.period === metric.metric_period && editingMetric.metricName === metricName ? (
-                            <div>
-                              <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
-                                Edit: {metricName}
-                              </div>
-                              <input
-                                type="number"
-                                value={editingMetric.value}
-                                onChange={(e) => setEditingMetric({ ...editingMetric, value: e.target.value })}
-                                style={{ width: '100%', padding: '6px', marginBottom: '8px', borderRadius: '4px', border: '1px solid #d1d5db' }}
-                                placeholder="Value"
-                              />
-                              <textarea
-                                value={editingMetric.comments}
-                                onChange={(e) => setEditingMetric({ ...editingMetric, comments: e.target.value })}
-                                style={{ width: '100%', padding: '6px', marginBottom: '8px', borderRadius: '4px', border: '1px solid #d1d5db' }}
-                                placeholder="Comments"
-                                rows="2"
-                              />
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                <button onClick={handleSaveEdit} className="btn btn-success" style={{ padding: '4px 12px', fontSize: '12px', flex: 1 }}>
-                                  <Save size={14} /> Save
-                                </button>
-                                <button onClick={() => setEditingMetric(null)} className="btn btn-secondary" style={{ padding: '4px 12px', fontSize: '12px', flex: 1 }}>
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
-                                {metricName}
-                              </div>
-                              <div style={{ fontSize: '20px', fontWeight: '700', color: '#1f2937', marginBottom: '4px' }}>
-                                {metricData.value || '-'}
-                              </div>
-                              {metricData.comments && (
-                                <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', marginBottom: '8px' }}>
-                                  {metricData.comments}
-                                </div>
-                              )}
-                              <div style={{ display: 'flex', gap: '4px', marginTop: '8px' }}>
-                                <button
-                                  onClick={() => handleEditMetric(metric.metric_period, metricName, metricData)}
-                                  className="btn btn-secondary"
-                                  style={{ padding: '4px 8px', fontSize: '11px', flex: 1 }}
-                                  title="Edit metric"
-                                >
-                                  <Edit2 size={12} /> Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteMetric(metric.metric_period, metricName)}
-                                  className="btn btn-danger"
-                                  style={{ padding: '4px 8px', fontSize: '11px', flex: 1 }}
-                                  title="Delete metric"
-                                >
-                                  <Trash2 size={12} /> Delete
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ textAlign: 'center', padding: '20px', color: '#64748b', fontSize: '14px' }}>
-                      No metrics recorded for this period
-                    </div>
-                  )}
+          {(() => {
+            let content;
+            if (loading) {
+              content = (
+                <div className="loading">Loading metrics...</div>
+              );
+            } else if (metrics.length === 0) {
+              content = (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                  <BarChart3 size={48} style={{ opacity: 0.3, marginBottom: '12px' }} />
+                  <p>No metrics recorded yet</p>
                 </div>
-              ))}
-            </div>
-          )}
+              );
+            } else {
+              content = (
+                <div>
+                  {metrics.map(metric => (
+                    <div key={metric.id} style={{ marginBottom: '16px', padding: '12px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', paddingBottom: '6px', borderBottom: '2px solid #3b82f6' }}>
+                        <h4 style={{ fontSize: '15px', fontWeight: '600', color: '#1f2937', margin: 0 }}>
+                          {metric.metric_period}
+                        </h4>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>
+                            Updated: {new Date(metric.modified_at).toLocaleDateString()}
+                          </span>
+                          <button
+                            onClick={() => handleDeletePeriod(metric.metric_period)}
+                            className="btn btn-danger"
+                            style={{ padding: '3px 7px', fontSize: '11px' }}
+                            title="Delete entire period"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {metric.additional_metrics && Object.keys(metric.additional_metrics).length > 0 ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
+                          {Object.entries(metric.additional_metrics).map(([metricName, metricData]) => (
+                            <div key={metricName} style={{ padding: '8px', backgroundColor: '#f9fafb', borderRadius: '6px', position: 'relative', textAlign: 'left' }}>
+                              {editingMetric && editingMetric.period === metric.metric_period && editingMetric.metricName === metricName ? (
+                                <div>
+                                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                                    Edit: {metricName}
+                                  </div>
+                                  <input
+                                    type="number"
+                                    value={editingMetric.value}
+                                    onChange={(e) => setEditingMetric({ ...editingMetric, value: e.target.value })}
+                                    style={{ width: '100%', padding: '5px', marginBottom: '6px', borderRadius: '4px', border: '1px solid #d1d5db' }}
+                                    placeholder="Value"
+                                  />
+                                  <textarea
+                                    value={editingMetric.comments}
+                                    onChange={(e) => setEditingMetric({ ...editingMetric, comments: e.target.value })}
+                                    style={{ width: '100%', padding: '5px', marginBottom: '6px', borderRadius: '4px', border: '1px solid #d1d5db' }}
+                                    placeholder="Comments"
+                                    rows="2"
+                                  />
+                                  <div style={{ display: 'flex', gap: '6px' }}>
+                                    <button onClick={handleSaveEdit} className="btn btn-success" style={{ padding: '3px 10px', fontSize: '11px', flex: 1 }}>
+                                      <Save size={13} /> Save
+                                    </button>
+                                    <button onClick={() => setEditingMetric(null)} className="btn btn-secondary" style={{ padding: '3px 10px', fontSize: '11px', flex: 1 }}>
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '2px' }}>
+                                    {metricName}
+                                  </div>
+                                  <div style={{ fontSize: '17px', fontWeight: '700', color: '#1f2937', marginBottom: '2px' }}>
+                                    {metricData.value || '-'}
+                                  </div>
+                                  {metricData.comments && (
+                                    <div style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic', marginBottom: '6px' }}>
+                                      {metricData.comments}
+                                    </div>
+                                  )}
+                                  <div style={{ display: 'flex', gap: '3px', marginTop: '6px' }}>
+                                    <button
+                                      onClick={() => handleEditMetric(metric.metric_period, metricName, metricData)}
+                                      className="btn btn-secondary"
+                                      style={{ padding: '3px 7px', fontSize: '10px', flex: 1 }}
+                                      title="Edit metric"
+                                    >
+                                      <Edit2 size={11} /> Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteMetric(metric.metric_period, metricName)}
+                                      className="btn btn-danger"
+                                      style={{ padding: '3px 7px', fontSize: '10px', flex: 1 }}
+                                      title="Delete metric"
+                                    >
+                                      <Trash2 size={11} /> Delete
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '16px', color: '#64748b', fontSize: '13px' }}>
+                          No metrics recorded for this period
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+            return content;
+          })()}
         </div>
 
         <div className="modal-footer">
