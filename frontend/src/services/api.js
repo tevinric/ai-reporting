@@ -46,4 +46,10 @@ export const getFeaturedSolutions = (month) => {
 export const getProcessOwnerSuggestions = () => api.get(API_ENDPOINTS.PROCESS_OWNERS);
 export const getBusinessOwnerSuggestions = () => api.get(API_ENDPOINTS.BUSINESS_OWNERS);
 
+// Risks
+export const getInitiativeRisks = (id) => api.get(API_ENDPOINTS.INITIATIVE_RISKS(id));
+export const createRisk = (id, data) => api.post(API_ENDPOINTS.INITIATIVE_RISKS(id), data);
+export const updateRisk = (id, data) => api.put(API_ENDPOINTS.RISK_BY_ID(id), data);
+export const deleteRisk = (id) => api.delete(API_ENDPOINTS.RISK_BY_ID(id));
+
 export default api;

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { ArrowLeft, Edit, TrendingUp, TrendingDown, Calendar, AlertTriangle } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getInitiativeById, getInitiativeMetrics, saveInitiativeMetric } from '../services/api';
+import RiskModal from '../components/RiskModal';
 
 function ProjectView() {
   const { id } = useParams();
@@ -13,6 +14,7 @@ function ProjectView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showMetricForm, setShowMetricForm] = useState(false);
+  const [showRiskModal, setShowRiskModal] = useState(false);
   const [metricFormData, setMetricFormData] = useState({
     metric_period: '',
     customer_experience_score: '',
@@ -170,11 +172,25 @@ function ProjectView() {
           <h1>{initiative.use_case_name}</h1>
           <p>{initiative.description}</p>
         </div>
-        <button onClick={() => navigate(`/initiatives/${id}/edit`)} className="btn btn-primary">
-          <Edit size={18} />
-          Edit Initiative
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button onClick={() => setShowRiskModal(true)} className="btn btn-secondary">
+            <AlertTriangle size={18} />
+            Manage Risks
+          </button>
+          <button onClick={() => navigate(`/initiatives/${id}/edit`)} className="btn btn-primary">
+            <Edit size={18} />
+            Edit Initiative
+          </button>
+        </div>
       </div>
+
+      {/* Risk Modal */}
+      {showRiskModal && (
+        <RiskModal
+          initiativeId={id}
+          onClose={() => setShowRiskModal(false)}
+        />
+      )}
 
       {/* Initiative Overview */}
       <div className="card">

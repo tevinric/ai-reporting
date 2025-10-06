@@ -80,11 +80,30 @@ def get_dashboard_stats():
                 COUNT(CASE WHEN status = 'Ideation' THEN 1 END) as ideation_count,
                 COUNT(CASE WHEN status = 'In Progress' THEN 1 END) as in_progress_count,
                 COUNT(CASE WHEN status = 'Live (Complete)' THEN 1 END) as completed_count,
-                AVG(percentage_complete) as avg_completion
+                AVG(percentage_complete) as avg_completion,
+                COUNT(CASE WHEN MONTH(created_at) = MONTH(GETDATE()) AND YEAR(created_at) = YEAR(GETDATE()) THEN 1 END) as new_initiatives_count
             FROM initiatives
         """)
         row = cursor.fetchone()
         stats = dict_from_row(cursor, row)
+
+        # Get in-progress initiatives
+        cursor.execute("""
+            SELECT TOP 10
+                i.id,
+                i.use_case_name,
+                i.percentage_complete,
+                i.health_status,
+                i.status,
+                STRING_AGG(id_dept.department, ', ') as departments
+            FROM initiatives i
+            LEFT JOIN initiative_departments id_dept ON i.id = id_dept.initiative_id
+            WHERE i.status = 'In Progress'
+            GROUP BY i.id, i.use_case_name, i.percentage_complete, i.health_status, i.status, i.modified_at
+            ORDER BY i.modified_at DESC
+        """)
+        in_progress = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+        stats['in_progress_initiatives'] = in_progress
 
         # Get initiatives by department
         cursor.execute("""
@@ -227,9 +246,9 @@ def create_initiative():
                 use_case_name, description, benefit, strategic_objective, status,
                 percentage_complete, process_owner, business_owner, start_date,
                 expected_completion_date, priority, risk_level, technology_stack,
-                team_size, budget_allocated, created_by_name, created_by_email,
+                team_size, budget_allocated, health_status, created_by_name, created_by_email,
                 modified_by_name, modified_by_email
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data.get('use_case_name'),
             data.get('description'),
@@ -246,6 +265,7 @@ def create_initiative():
             data.get('technology_stack'),
             data.get('team_size'),
             data.get('budget_allocated'),
+            data.get('health_status', 'Green'),
             DEFAULT_USER['name'],
             DEFAULT_USER['email'],
             DEFAULT_USER['name'],
@@ -300,6 +320,7 @@ def update_initiative(initiative_id):
                 team_size = ?,
                 budget_allocated = ?,
                 budget_spent = ?,
+                health_status = ?,
                 is_featured = ?,
                 featured_month = ?,
                 modified_at = GETDATE(),
@@ -324,6 +345,7 @@ def update_initiative(initiative_id):
             data.get('team_size'),
             data.get('budget_allocated'),
             data.get('budget_spent'),
+            data.get('health_status'),
             data.get('is_featured', 0),
             data.get('featured_month'),
             DEFAULT_USER['name'],
@@ -837,6 +859,118 @@ def get_business_owner_suggestions():
         return jsonify(owners)
     except Exception as e:
         logger.error(f"Error fetching business owners: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ==================== Risks Management ====================
+
+@app.route('/api/initiatives/<int:initiative_id>/risks', methods=['GET'])
+def get_initiative_risks(initiative_id):
+    """Get all risks for an initiative"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT * FROM risks
+            WHERE initiative_id = ?
+            ORDER BY created_at DESC
+        """, initiative_id)
+
+        risks = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify(risks)
+    except Exception as e:
+        logger.error(f"Error fetching risks: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/initiatives/<int:initiative_id>/risks', methods=['POST'])
+def create_risk(initiative_id):
+    """Create a new risk for an initiative"""
+    try:
+        data = request.json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO risks (
+                initiative_id, risk_title, risk_detail, frequency, severity,
+                created_by_name, created_by_email, modified_by_name, modified_by_email
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            initiative_id,
+            data.get('risk_title'),
+            data.get('risk_detail'),
+            data.get('frequency'),
+            data.get('severity'),
+            DEFAULT_USER['name'],
+            DEFAULT_USER['email'],
+            DEFAULT_USER['name'],
+            DEFAULT_USER['email']
+        ))
+
+        cursor.execute("SELECT @@IDENTITY")
+        risk_id = cursor.fetchone()[0]
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'id': risk_id, 'message': 'Risk created successfully'}), 201
+    except Exception as e:
+        logger.error(f"Error creating risk: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/risks/<int:risk_id>', methods=['PUT'])
+def update_risk(risk_id):
+    """Update a risk"""
+    try:
+        data = request.json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE risks SET
+                risk_title = ?,
+                risk_detail = ?,
+                frequency = ?,
+                severity = ?,
+                modified_at = GETDATE(),
+                modified_by_name = ?,
+                modified_by_email = ?
+            WHERE id = ?
+        """, (
+            data.get('risk_title'),
+            data.get('risk_detail'),
+            data.get('frequency'),
+            data.get('severity'),
+            DEFAULT_USER['name'],
+            DEFAULT_USER['email'],
+            risk_id
+        ))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Risk updated successfully'})
+    except Exception as e:
+        logger.error(f"Error updating risk: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/risks/<int:risk_id>', methods=['DELETE'])
+def delete_risk(risk_id):
+    """Delete a risk"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("DELETE FROM risks WHERE id = ?", risk_id)
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Risk deleted successfully'})
+    except Exception as e:
+        logger.error(f"Error deleting risk: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

@@ -29,6 +29,10 @@ export const API_ENDPOINTS = {
   // Suggestions
   PROCESS_OWNERS: `${API_BASE_URL}/api/suggestions/process-owners`,
   BUSINESS_OWNERS: `${API_BASE_URL}/api/suggestions/business-owners`,
+
+  // Risks
+  INITIATIVE_RISKS: (id) => `${API_BASE_URL}/api/initiatives/${id}/risks`,
+  RISK_BY_ID: (id) => `${API_BASE_URL}/api/risks/${id}`,
 };
 
 export default API_BASE_URL;

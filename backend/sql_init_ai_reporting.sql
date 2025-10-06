@@ -2,6 +2,7 @@
 -- This script creates all necessary tables for the AI reporting application
 
 -- Drop tables if they exist (in reverse order of dependencies)
+IF OBJECT_ID('dbo.risks', 'U') IS NOT NULL DROP TABLE dbo.risks;
 IF OBJECT_ID('dbo.monthly_metrics', 'U') IS NOT NULL DROP TABLE dbo.monthly_metrics;
 IF OBJECT_ID('dbo.initiative_departments', 'U') IS NOT NULL DROP TABLE dbo.initiative_departments;
 IF OBJECT_ID('dbo.initiatives', 'U') IS NOT NULL DROP TABLE dbo.initiatives;
@@ -61,6 +62,7 @@ CREATE TABLE dbo.initiatives (
     team_size INT,
     budget_allocated DECIMAL(18,2),
     budget_spent DECIMAL(18,2),
+    health_status NVARCHAR(50) DEFAULT 'Green', -- Green, Amber, Red
 
     -- Audit fields
     created_at DATETIME DEFAULT GETDATE(),
@@ -79,6 +81,24 @@ CREATE TABLE dbo.initiative_departments (
     id INT IDENTITY(1,1) PRIMARY KEY,
     initiative_id INT NOT NULL,
     department NVARCHAR(255) NOT NULL,
+    FOREIGN KEY (initiative_id) REFERENCES dbo.initiatives(id) ON DELETE CASCADE
+);
+
+-- Table: risks
+-- Stores risk assessments for each initiative
+CREATE TABLE dbo.risks (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    initiative_id INT NOT NULL,
+    risk_title NVARCHAR(255) NOT NULL,
+    risk_detail NVARCHAR(MAX),
+    frequency NVARCHAR(50), -- High, Medium, Low
+    severity NVARCHAR(50), -- High, Medium, Low
+    created_at DATETIME DEFAULT GETDATE(),
+    created_by_name NVARCHAR(255),
+    created_by_email NVARCHAR(255),
+    modified_at DATETIME DEFAULT GETDATE(),
+    modified_by_name NVARCHAR(255),
+    modified_by_email NVARCHAR(255),
     FOREIGN KEY (initiative_id) REFERENCES dbo.initiatives(id) ON DELETE CASCADE
 );
 
@@ -166,7 +186,22 @@ INSERT INTO dbo.field_options (field_name, option_value, display_order) VALUES
 -- Risk Level
 ('risk_level', 'High', 1),
 ('risk_level', 'Medium', 2),
-('risk_level', 'Low', 3);
+('risk_level', 'Low', 3),
+
+-- Health Status
+('health_status', 'Green', 1),
+('health_status', 'Amber', 2),
+('health_status', 'Red', 3),
+
+-- Risk Frequency
+('frequency', 'High', 1),
+('frequency', 'Medium', 2),
+('frequency', 'Low', 3),
+
+-- Risk Severity
+('severity', 'High', 1),
+('severity', 'Medium', 2),
+('severity', 'Low', 3);
 
 -- Insert default custom metrics
 INSERT INTO dbo.custom_metrics (metric_name, metric_description, metric_type, unit_of_measure) VALUES
@@ -189,7 +224,9 @@ GO
 -- Create indexes for better performance
 CREATE INDEX IX_initiatives_status ON dbo.initiatives(status);
 CREATE INDEX IX_initiatives_featured ON dbo.initiatives(is_featured, featured_month);
+CREATE INDEX IX_initiatives_health_status ON dbo.initiatives(health_status);
 CREATE INDEX IX_monthly_metrics_period ON dbo.monthly_metrics(metric_period);
 CREATE INDEX IX_field_options_field_name ON dbo.field_options(field_name, is_active);
+CREATE INDEX IX_risks_initiative ON dbo.risks(initiative_id);
 
 GO

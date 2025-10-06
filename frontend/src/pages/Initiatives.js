@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Eye, Edit, Trash2, Filter } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, Filter, BarChart3 } from 'lucide-react';
 import { getInitiatives, deleteInitiative, getFieldOptions } from '../services/api';
+import MetricsModal from '../components/MetricsModal';
 
 function Initiatives() {
   const navigate = useNavigate();
@@ -13,6 +14,8 @@ function Initiatives() {
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [statusOptions, setStatusOptions] = useState([]);
   const [departmentOptions, setDepartmentOptions] = useState([]);
+  const [showMetricsModal, setShowMetricsModal] = useState(false);
+  const [selectedInitiative, setSelectedInitiative] = useState(null);
 
   useEffect(() => {
     loadInitiatives();
@@ -167,6 +170,7 @@ function Initiatives() {
                 <tr>
                   <th>Use Case Name</th>
                   <th>Status</th>
+                  <th>Health</th>
                   <th>Departments</th>
                   <th>Benefit</th>
                   <th>Progress</th>
@@ -186,6 +190,17 @@ function Initiatives() {
                       </span>
                     </td>
                     <td>{getStatusBadge(initiative.status)}</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          backgroundColor: initiative.health_status === 'Green' ? '#10b981' : initiative.health_status === 'Amber' ? '#f59e0b' : '#ef4444'
+                        }}></div>
+                        <span style={{ fontSize: '13px' }}>{initiative.health_status || 'Green'}</span>
+                      </div>
+                    </td>
                     <td>
                       {initiative.departments?.join(', ') || '-'}
                     </td>
@@ -217,6 +232,14 @@ function Initiatives() {
                           <Eye size={16} />
                         </button>
                         <button
+                          onClick={() => { setSelectedInitiative(initiative); setShowMetricsModal(true); }}
+                          className="btn btn-secondary"
+                          style={{ padding: '6px 12px' }}
+                          title="Metrics"
+                        >
+                          <BarChart3 size={16} />
+                        </button>
+                        <button
                           onClick={() => navigate(`/initiatives/${initiative.id}/edit`)}
                           className="btn btn-secondary"
                           style={{ padding: '6px 12px' }}
@@ -241,6 +264,14 @@ function Initiatives() {
           )}
         </div>
       </div>
+
+      {/* Metrics Modal */}
+      {showMetricsModal && selectedInitiative && (
+        <MetricsModal
+          initiative={selectedInitiative}
+          onClose={() => { setShowMetricsModal(false); setSelectedInitiative(null); }}
+        />
+      )}
     </div>
   );
 }

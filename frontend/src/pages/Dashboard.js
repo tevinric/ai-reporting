@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp, TrendingDown, FolderKanban, CheckCircle, Clock, Lightbulb } from 'lucide-react';
+import { TrendingUp, TrendingDown, FolderKanban, CheckCircle, Clock, Lightbulb, Plus, Eye } from 'lucide-react';
 import { getDashboardStats, getMonthlyTrends } from '../services/api';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#8b5cf6'];
@@ -80,14 +80,77 @@ function Dashboard() {
         </div>
 
         <div className="stat-card info">
-          <span className="stat-label">Ideation</span>
-          <div className="stat-value">{stats?.ideation_count || 0}</div>
-          <div className="stat-change">
-            <Lightbulb size={16} />
-            <span>Planning phase</span>
+          <span className="stat-label">New This Month</span>
+          <div className="stat-value">{stats?.new_initiatives_count || 0}</div>
+          <div className="stat-change positive">
+            <Plus size={16} />
+            <span>Recently added</span>
           </div>
         </div>
       </div>
+
+      {/* In-Progress Initiatives Table */}
+      {stats?.in_progress_initiatives && stats.in_progress_initiatives.length > 0 && (
+        <div className="card" style={{ marginBottom: '20px' }}>
+          <div className="card-header">
+            <h2>In-Progress Initiatives</h2>
+          </div>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Initiative</th>
+                  <th>Departments</th>
+                  <th>Health Status</th>
+                  <th>Progress</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.in_progress_initiatives.map(initiative => (
+                  <tr key={initiative.id}>
+                    <td><strong>{initiative.use_case_name}</strong></td>
+                    <td style={{ fontSize: '13px' }}>{initiative.departments || '-'}</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          backgroundColor: initiative.health_status === 'Green' ? '#10b981' : initiative.health_status === 'Amber' ? '#f59e0b' : '#ef4444'
+                        }}></div>
+                        <span style={{ fontSize: '13px' }}>{initiative.health_status || 'Green'}</span>
+                      </div>
+                    </td>
+                    <td style={{ minWidth: '200px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div className="progress-bar" style={{ flex: 1 }}>
+                          <div
+                            className="progress-bar-fill"
+                            style={{ width: `${initiative.percentage_complete || 0}%` }}
+                          ></div>
+                        </div>
+                        <span style={{ fontSize: '12px', color: '#64748b' }}>
+                          {initiative.percentage_complete || 0}%
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <button
+                        onClick={() => navigate(`/initiatives/${initiative.id}`)}
+                        className="btn btn-secondary"
+                        style={{ padding: '6px 12px' }}
+                      >
+                        <Eye size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Charts Row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
@@ -172,13 +235,13 @@ function Dashboard() {
           <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '14px', color: '#64748b' }}>Average Completion Rate</span>
             <span style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>
-              {stats?.avg_completion ? `${stats.avg_completion.toFixed(1)}%` : '0%'}
+              {stats?.avg_completion ? `${Number(stats.avg_completion).toFixed(1)}%` : '0%'}
             </span>
           </div>
           <div className="progress-bar">
             <div
               className="progress-bar-fill"
-              style={{ width: `${stats?.avg_completion || 0}%` }}
+              style={{ width: `${Number(stats?.avg_completion || 0)}%` }}
             ></div>
           </div>
         </div>

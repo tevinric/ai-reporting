@@ -26,6 +26,7 @@ function InitiativeForm() {
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [priorityOptions, setPriorityOptions] = useState([]);
   const [riskOptions, setRiskOptions] = useState([]);
+  const [healthStatusOptions, setHealthStatusOptions] = useState([]);
   const [processOwnerSuggestions, setProcessOwnerSuggestions] = useState([]);
   const [businessOwnerSuggestions, setBusinessOwnerSuggestions] = useState([]);
 
@@ -48,6 +49,7 @@ function InitiativeForm() {
     team_size: '',
     budget_allocated: '',
     budget_spent: '',
+    health_status: 'Green',
     departments: []
   });
 
@@ -61,13 +63,14 @@ function InitiativeForm() {
 
   const loadFieldOptions = async () => {
     try {
-      const [benefits, objectives, statuses, departments, priorities, risks] = await Promise.all([
+      const [benefits, objectives, statuses, departments, priorities, risks, healthStatuses] = await Promise.all([
         getFieldOptions('benefit'),
         getFieldOptions('strategic_objective'),
         getFieldOptions('status'),
         getFieldOptions('department'),
         getFieldOptions('priority'),
-        getFieldOptions('risk_level')
+        getFieldOptions('risk_level'),
+        getFieldOptions('health_status')
       ]);
 
       setBenefitOptions(benefits.data);
@@ -76,6 +79,7 @@ function InitiativeForm() {
       setDepartmentOptions(departments.data);
       setPriorityOptions(priorities.data);
       setRiskOptions(risks.data);
+      setHealthStatusOptions(healthStatuses.data);
     } catch (err) {
       console.error('Failed to load field options', err);
     }
@@ -230,7 +234,7 @@ function InitiativeForm() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
             <div className="form-group">
               <label>Status *</label>
               <select
@@ -256,6 +260,22 @@ function InitiativeForm() {
                 max="100"
                 placeholder="0-100"
               />
+            </div>
+
+            <div className="form-group">
+              <label>Health Status</label>
+              <select
+                name="health_status"
+                value={formData.health_status}
+                onChange={handleChange}
+              >
+                {healthStatusOptions.map(opt => (
+                  <option key={opt.id} value={opt.option_value}>{opt.option_value}</option>
+                ))}
+              </select>
+              <small style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                Green: On track | Amber: At risk | Red: Behind schedule
+              </small>
             </div>
           </div>
 
