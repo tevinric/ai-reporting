@@ -469,8 +469,8 @@ def create_initiative():
             data.get('percentage_complete', 0),
             data.get('process_owner'),
             data.get('business_owner'),
-            data.get('start_date'),
-            data.get('expected_completion_date'),
+            convert_to_date(data.get('start_date')),
+            convert_to_date(data.get('expected_completion_date')),
             data.get('priority'),
             data.get('risk_level'),
             data.get('technology_stack'),
@@ -549,9 +549,9 @@ def update_initiative(initiative_id):
             data.get('percentage_complete'),
             data.get('process_owner'),
             data.get('business_owner'),
-            data.get('start_date'),
-            data.get('expected_completion_date'),
-            data.get('actual_completion_date'),
+            convert_to_date(data.get('start_date')),
+            convert_to_date(data.get('expected_completion_date')),
+            convert_to_date(data.get('actual_completion_date')),
             data.get('priority'),
             data.get('risk_level'),
             data.get('technology_stack'),
@@ -561,7 +561,7 @@ def update_initiative(initiative_id):
             data.get('health_status'),
             data.get('initiative_type'),
             data.get('is_featured', 0),
-            data.get('featured_month'),
+            convert_to_date(data.get('featured_month')),
             DEFAULT_USER['name'],
             DEFAULT_USER['email'],
             initiative_id
@@ -852,6 +852,12 @@ def convert_to_numeric(value):
         return float(value) if '.' in str(value) else int(value)
     except (ValueError, TypeError):
         return None
+
+def convert_to_date(value):
+    """Convert value to date, return None if empty or invalid"""
+    if value is None or value == '' or value == 'null' or value == 'undefined':
+        return None
+    return value
 
 @app.route('/api/initiatives/<int:initiative_id>/metrics', methods=['POST'])
 def create_initiative_metric(initiative_id):

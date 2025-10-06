@@ -202,7 +202,9 @@ function Initiatives() {
                           width: '12px',
                           height: '12px',
                           borderRadius: '50%',
-                          backgroundColor: initiative.health_status === 'Green' ? '#10b981' : initiative.health_status === 'Amber' ? '#f59e0b' : '#ef4444'
+                          backgroundColor:
+                            (initiative.health_status || '').toLowerCase() === 'green' ? '#10b981' :
+                            (initiative.health_status || '').toLowerCase() === 'amber' ? '#f59e0b' : '#ef4444'
                         }}></div>
                         <span style={{ fontSize: '13px' }}>{initiative.health_status || 'Green'}</span>
                       </div>

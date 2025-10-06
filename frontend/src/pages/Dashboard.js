@@ -247,8 +247,9 @@ function Dashboard() {
                           width: '12px',
                           height: '12px',
                           borderRadius: '50%',
-                          backgroundColor: initiative.health_status === 'Green' ? '#10b981' :
-                                         initiative.health_status === 'Amber' ? '#f59e0b' : '#ef4444'
+                          backgroundColor:
+                            (initiative.health_status || '').toLowerCase() === 'green' ? '#10b981' :
+                            (initiative.health_status || '').toLowerCase() === 'amber' ? '#f59e0b' : '#ef4444'
                         }}></div>
                         <span style={{ fontSize: '13px' }}>{initiative.health_status || 'Green'}</span>
                       </div>
@@ -330,7 +331,9 @@ function Dashboard() {
                           width: '12px',
                           height: '12px',
                           borderRadius: '50%',
-                          backgroundColor: initiative.health_status === 'Green' ? '#10b981' : initiative.health_status === 'Amber' ? '#f59e0b' : '#ef4444'
+                          backgroundColor:
+                            (initiative.health_status || '').toLowerCase() === 'green' ? '#10b981' :
+                            (initiative.health_status || '').toLowerCase() === 'amber' ? '#f59e0b' : '#ef4444'
                         }}></div>
                         <span style={{ fontSize: '13px' }}>{initiative.health_status || 'Green'}</span>
                       </div>
@@ -674,7 +677,9 @@ function Dashboard() {
                             width: '12px',
                             height: '12px',
                             borderRadius: '50%',
-                            backgroundColor: initiative.health_status === 'Green' ? '#10b981' : initiative.health_status === 'Amber' ? '#f59e0b' : '#ef4444'
+                            backgroundColor:
+                              (initiative.health_status || '').toLowerCase() === 'green' ? '#10b981' :
+                              (initiative.health_status || '').toLowerCase() === 'amber' ? '#f59e0b' : '#ef4444'
                           }}></div>
                           <span style={{ fontSize: '13px' }}>{initiative.health_status || 'Green'}</span>
                         </div>
@@ -798,7 +803,9 @@ function Dashboard() {
                                 width: '10px',
                                 height: '10px',
                                 borderRadius: '50%',
-                                backgroundColor: initiative.health_status === 'Green' ? '#10b981' : initiative.health_status === 'Amber' ? '#f59e0b' : '#ef4444'
+                                backgroundColor:
+                                  (initiative.health_status || '').toLowerCase() === 'green' ? '#10b981' :
+                                  (initiative.health_status || '').toLowerCase() === 'amber' ? '#f59e0b' : '#ef4444'
                               }}></div>
                               <span style={{ fontSize: '12px' }}>{initiative.health_status}</span>
                             </div>
