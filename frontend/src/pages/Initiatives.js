@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Eye, Edit, Trash2, Filter, BarChart3 } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, Filter, BarChart3, AlertTriangle } from 'lucide-react';
 import { getInitiatives, deleteInitiative, getFieldOptions } from '../services/api';
 import MetricsModal from '../components/MetricsModal';
+import RiskModal from '../components/RiskModal';
 
 function Initiatives() {
   const navigate = useNavigate();
@@ -16,6 +17,8 @@ function Initiatives() {
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [selectedInitiative, setSelectedInitiative] = useState(null);
+  const [showRiskModal, setShowRiskModal] = useState(false);
+  const [selectedInitiativeForRisk, setSelectedInitiativeForRisk] = useState(null);
 
   useEffect(() => {
     loadInitiatives();
@@ -248,6 +251,14 @@ function Initiatives() {
                           <BarChart3 size={16} />
                         </button>
                         <button
+                          onClick={() => { setSelectedInitiativeForRisk(initiative.id); setShowRiskModal(true); }}
+                          className="btn btn-secondary"
+                          style={{ padding: '6px 12px' }}
+                          title="View Risks"
+                        >
+                          <AlertTriangle size={16} />
+                        </button>
+                        <button
                           onClick={() => navigate(`/initiatives/${initiative.id}/edit`)}
                           className="btn btn-secondary"
                           style={{ padding: '6px 12px' }}
@@ -278,6 +289,14 @@ function Initiatives() {
         <MetricsModal
           initiative={selectedInitiative}
           onClose={() => { setShowMetricsModal(false); setSelectedInitiative(null); }}
+        />
+      )}
+
+      {/* Risk Modal */}
+      {showRiskModal && selectedInitiativeForRisk && (
+        <RiskModal
+          initiativeId={selectedInitiativeForRisk}
+          onClose={() => { setShowRiskModal(false); setSelectedInitiativeForRisk(null); }}
         />
       )}
     </div>
