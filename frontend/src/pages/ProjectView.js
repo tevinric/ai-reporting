@@ -247,6 +247,26 @@ function ProjectView() {
     return <span className="stat-change">No change from last month</span>;
   };
 
+  // Get all unique metric names from current initiative
+  const getCurrentMetricNames = () => {
+    if (metrics.length === 0) return [];
+
+    const metricNames = new Set();
+    metrics.forEach(metric => {
+      if (metric.additional_metrics && typeof metric.additional_metrics === 'object') {
+        Object.keys(metric.additional_metrics).forEach(name => metricNames.add(name));
+      }
+    });
+
+    return Array.from(metricNames);
+  };
+
+  // Get current month metrics as object
+  const getCurrentMonthMetrics = () => {
+    if (!metrics[0] || !metrics[0].additional_metrics) return {};
+    return metrics[0].additional_metrics;
+  };
+
   // Calculate YTD (Year to Date) metrics
   const calculateYTDMetrics = () => {
     const currentYear = new Date().getFullYear();
@@ -257,30 +277,72 @@ function ProjectView() {
 
     if (ytdMetrics.length === 0) return null;
 
-    return {
-      time_saved_hours: ytdMetrics.reduce((sum, m) => sum + (m.time_saved_hours || 0), 0),
-      cost_saved_rands: ytdMetrics.reduce((sum, m) => sum + (m.cost_saved_rands || 0), 0),
-      revenue_increase_rands: ytdMetrics.reduce((sum, m) => sum + (m.revenue_increase_rands || 0), 0),
-      customer_experience_score: ytdMetrics.reduce((sum, m) => sum + (m.customer_experience_score || 0), 0) / ytdMetrics.length,
-      model_accuracy: ytdMetrics.reduce((sum, m) => sum + (m.model_accuracy || 0), 0) / ytdMetrics.length,
-      user_adoption_rate: ytdMetrics.reduce((sum, m) => sum + (m.user_adoption_rate || 0), 0) / ytdMetrics.length,
-      months_count: ytdMetrics.length
-    };
+    const aggregated = {};
+    const metricNames = getCurrentMetricNames();
+
+    metricNames.forEach(metricName => {
+      const values = [];
+      ytdMetrics.forEach(metric => {
+        if (metric.additional_metrics && metric.additional_metrics[metricName]) {
+          const value = parseFloat(metric.additional_metrics[metricName].value);
+          if (!isNaN(value)) {
+            values.push(value);
+          }
+        }
+      });
+
+      if (values.length > 0) {
+        // Determine if this should be summed or averaged based on metric name
+        const shouldSum = metricName.toLowerCase().includes('saved') ||
+                         metricName.toLowerCase().includes('revenue') ||
+                         metricName.toLowerCase().includes('cost') ||
+                         metricName.toLowerCase().includes('time') ||
+                         metricName.toLowerCase().includes('units');
+
+        aggregated[metricName] = {
+          value: shouldSum ? values.reduce((a, b) => a + b, 0) : values.reduce((a, b) => a + b, 0) / values.length,
+          isAverage: !shouldSum
+        };
+      }
+    });
+
+    return { metrics: aggregated, months_count: ytdMetrics.length };
   };
 
   // Calculate All Time metrics
   const calculateAllTimeMetrics = () => {
     if (metrics.length === 0) return null;
 
-    return {
-      time_saved_hours: metrics.reduce((sum, m) => sum + (m.time_saved_hours || 0), 0),
-      cost_saved_rands: metrics.reduce((sum, m) => sum + (m.cost_saved_rands || 0), 0),
-      revenue_increase_rands: metrics.reduce((sum, m) => sum + (m.revenue_increase_rands || 0), 0),
-      customer_experience_score: metrics.reduce((sum, m) => sum + (m.customer_experience_score || 0), 0) / metrics.length,
-      model_accuracy: metrics.reduce((sum, m) => sum + (m.model_accuracy || 0), 0) / metrics.length,
-      user_adoption_rate: metrics.reduce((sum, m) => sum + (m.user_adoption_rate || 0), 0) / metrics.length,
-      months_count: metrics.length
-    };
+    const aggregated = {};
+    const metricNames = getCurrentMetricNames();
+
+    metricNames.forEach(metricName => {
+      const values = [];
+      metrics.forEach(metric => {
+        if (metric.additional_metrics && metric.additional_metrics[metricName]) {
+          const value = parseFloat(metric.additional_metrics[metricName].value);
+          if (!isNaN(value)) {
+            values.push(value);
+          }
+        }
+      });
+
+      if (values.length > 0) {
+        // Determine if this should be summed or averaged based on metric name
+        const shouldSum = metricName.toLowerCase().includes('saved') ||
+                         metricName.toLowerCase().includes('revenue') ||
+                         metricName.toLowerCase().includes('cost') ||
+                         metricName.toLowerCase().includes('time') ||
+                         metricName.toLowerCase().includes('units');
+
+        aggregated[metricName] = {
+          value: shouldSum ? values.reduce((a, b) => a + b, 0) : values.reduce((a, b) => a + b, 0) / values.length,
+          isAverage: !shouldSum
+        };
+      }
+    });
+
+    return { metrics: aggregated, months_count: metrics.length };
   };
 
   if (loading) {
@@ -293,6 +355,7 @@ function ProjectView() {
 
   const currentMetric = metrics[0];
   const previousMetric = metrics[1];
+  const currentMonthMetrics = getCurrentMonthMetrics();
   const ytdMetrics = calculateYTDMetrics();
   const allTimeMetrics = calculateAllTimeMetrics();
 
@@ -389,53 +452,41 @@ function ProjectView() {
       </div>
 
       {/* Key Metrics */}
-      {currentMetric && (
+      {currentMetric && Object.keys(currentMonthMetrics).length > 0 && (
         <>
           <div className="card-header" style={{ marginTop: '24px', marginBottom: '16px' }}>
             <h2>Current Month Metrics</h2>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
+              {currentMetric.metric_period}
+            </p>
           </div>
           <div className="stats-grid">
-            <div className="stat-card">
-              <span className="stat-label">Time Saved (Hours/Month)</span>
-              <div className="stat-value">{currentMetric.time_saved_hours || 0}</div>
-              {previousMetric && getTrendIndicator(currentMetric.time_saved_hours, previousMetric.time_saved_hours)}
-            </div>
+            {Object.entries(currentMonthMetrics).map(([metricName, metricData], index) => {
+              const cardTypes = ['', 'success', 'warning', 'info', '', 'success'];
+              const cardType = cardTypes[index % cardTypes.length];
 
-            <div className="stat-card success">
-              <span className="stat-label">Cost Saved (Rands/Month)</span>
-              <div className="stat-value">R{(currentMetric.cost_saved_rands || 0).toLocaleString()}</div>
-              {previousMetric && getTrendIndicator(currentMetric.cost_saved_rands, previousMetric.cost_saved_rands)}
-            </div>
+              const previousValue = previousMetric?.additional_metrics?.[metricName]?.value;
+              const currentValue = metricData.value;
 
-            <div className="stat-card warning">
-              <span className="stat-label">Revenue Increase (Rands/Month)</span>
-              <div className="stat-value">R{(currentMetric.revenue_increase_rands || 0).toLocaleString()}</div>
-              {previousMetric && getTrendIndicator(currentMetric.revenue_increase_rands, previousMetric.revenue_increase_rands)}
-            </div>
-
-            <div className="stat-card info">
-              <span className="stat-label">Customer Experience Score</span>
-              <div className="stat-value">{currentMetric.customer_experience_score || 0}/10</div>
-              {previousMetric && getTrendIndicator(currentMetric.customer_experience_score, previousMetric.customer_experience_score)}
-            </div>
-
-            <div className="stat-card">
-              <span className="stat-label">Model Accuracy</span>
-              <div className="stat-value">{currentMetric.model_accuracy || 0}%</div>
-              {previousMetric && getTrendIndicator(currentMetric.model_accuracy, previousMetric.model_accuracy)}
-            </div>
-
-            <div className="stat-card">
-              <span className="stat-label">User Adoption Rate</span>
-              <div className="stat-value">{currentMetric.user_adoption_rate || 0}%</div>
-              {previousMetric && getTrendIndicator(currentMetric.user_adoption_rate, previousMetric.user_adoption_rate)}
-            </div>
+              return (
+                <div key={metricName} className={`stat-card ${cardType}`}>
+                  <span className="stat-label">{metricName}</span>
+                  <div className="stat-value">{parseFloat(currentValue).toLocaleString() || 0}</div>
+                  {previousValue && getTrendIndicator(parseFloat(currentValue), parseFloat(previousValue))}
+                  {metricData.comments && (
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '8px', fontStyle: 'italic' }}>
+                      {metricData.comments}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </>
       )}
 
       {/* YTD Metrics */}
-      {ytdMetrics && (
+      {ytdMetrics && Object.keys(ytdMetrics.metrics).length > 0 && (
         <>
           <div className="card-header" style={{ marginTop: '24px', marginBottom: '16px' }}>
             <h2>YTD Metrics (Year to Date)</h2>
@@ -444,41 +495,30 @@ function ProjectView() {
             </p>
           </div>
           <div className="stats-grid">
-            <div className="stat-card">
-              <span className="stat-label">Time Saved (Total Hours)</span>
-              <div className="stat-value">{Math.round(ytdMetrics.time_saved_hours || 0)}</div>
-            </div>
+            {Object.entries(ytdMetrics.metrics).map(([metricName, metricData], index) => {
+              const cardTypes = ['', 'success', 'warning', 'info', '', 'success'];
+              const cardType = cardTypes[index % cardTypes.length];
 
-            <div className="stat-card success">
-              <span className="stat-label">Cost Saved (Total)</span>
-              <div className="stat-value">R{Math.round(ytdMetrics.cost_saved_rands || 0).toLocaleString()}</div>
-            </div>
-
-            <div className="stat-card warning">
-              <span className="stat-label">Revenue Increase (Total)</span>
-              <div className="stat-value">R{Math.round(ytdMetrics.revenue_increase_rands || 0).toLocaleString()}</div>
-            </div>
-
-            <div className="stat-card info">
-              <span className="stat-label">Customer Experience Score (Avg)</span>
-              <div className="stat-value">{(ytdMetrics.customer_experience_score || 0).toFixed(1)}/10</div>
-            </div>
-
-            <div className="stat-card">
-              <span className="stat-label">Model Accuracy (Avg)</span>
-              <div className="stat-value">{(ytdMetrics.model_accuracy || 0).toFixed(1)}%</div>
-            </div>
-
-            <div className="stat-card">
-              <span className="stat-label">User Adoption Rate (Avg)</span>
-              <div className="stat-value">{(ytdMetrics.user_adoption_rate || 0).toFixed(1)}%</div>
-            </div>
+              return (
+                <div key={metricName} className={`stat-card ${cardType}`}>
+                  <span className="stat-label">
+                    {metricName} {metricData.isAverage ? '(Avg)' : '(Total)'}
+                  </span>
+                  <div className="stat-value">
+                    {metricData.isAverage
+                      ? metricData.value.toFixed(1)
+                      : Math.round(metricData.value).toLocaleString()
+                    }
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </>
       )}
 
       {/* All Time Metrics */}
-      {allTimeMetrics && (
+      {allTimeMetrics && Object.keys(allTimeMetrics.metrics).length > 0 && (
         <>
           <div className="card-header" style={{ marginTop: '24px', marginBottom: '16px' }}>
             <h2>All Time Metrics</h2>
@@ -487,35 +527,24 @@ function ProjectView() {
             </p>
           </div>
           <div className="stats-grid">
-            <div className="stat-card">
-              <span className="stat-label">Time Saved (Total Hours)</span>
-              <div className="stat-value">{Math.round(allTimeMetrics.time_saved_hours || 0)}</div>
-            </div>
+            {Object.entries(allTimeMetrics.metrics).map(([metricName, metricData], index) => {
+              const cardTypes = ['', 'success', 'warning', 'info', '', 'success'];
+              const cardType = cardTypes[index % cardTypes.length];
 
-            <div className="stat-card success">
-              <span className="stat-label">Cost Saved (Total)</span>
-              <div className="stat-value">R{Math.round(allTimeMetrics.cost_saved_rands || 0).toLocaleString()}</div>
-            </div>
-
-            <div className="stat-card warning">
-              <span className="stat-label">Revenue Increase (Total)</span>
-              <div className="stat-value">R{Math.round(allTimeMetrics.revenue_increase_rands || 0).toLocaleString()}</div>
-            </div>
-
-            <div className="stat-card info">
-              <span className="stat-label">Customer Experience Score (Avg)</span>
-              <div className="stat-value">{(allTimeMetrics.customer_experience_score || 0).toFixed(1)}/10</div>
-            </div>
-
-            <div className="stat-card">
-              <span className="stat-label">Model Accuracy (Avg)</span>
-              <div className="stat-value">{(allTimeMetrics.model_accuracy || 0).toFixed(1)}%</div>
-            </div>
-
-            <div className="stat-card">
-              <span className="stat-label">User Adoption Rate (Avg)</span>
-              <div className="stat-value">{(allTimeMetrics.user_adoption_rate || 0).toFixed(1)}%</div>
-            </div>
+              return (
+                <div key={metricName} className={`stat-card ${cardType}`}>
+                  <span className="stat-label">
+                    {metricName} {metricData.isAverage ? '(Avg)' : '(Total)'}
+                  </span>
+                  <div className="stat-value">
+                    {metricData.isAverage
+                      ? metricData.value.toFixed(1)
+                      : Math.round(metricData.value).toLocaleString()
+                    }
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </>
       )}
