@@ -22,6 +22,7 @@ function Dashboard() {
   // Filter states
   const [selectedInitiatives, setSelectedInitiatives] = useState([]);
   const [selectedInitiativeType, setSelectedInitiativeType] = useState('');
+  const [selectedBusinessUnit, setSelectedBusinessUnit] = useState('');
 
   useEffect(() => {
     loadDashboardData();
@@ -31,7 +32,7 @@ function Dashboard() {
     loadTrendsWithFilters();
     // Reset to page 1 when filters change
     setCurrentPage(1);
-  }, [selectedInitiatives, selectedInitiativeType]);
+  }, [selectedInitiatives, selectedInitiativeType, selectedBusinessUnit]);
 
   const loadDashboardData = async () => {
     try {
@@ -67,6 +68,11 @@ function Dashboard() {
       filtered = filtered.filter(i => i.initiative_type === selectedInitiativeType);
     }
 
+    // Filter by business unit
+    if (selectedBusinessUnit) {
+      filtered = filtered.filter(i => i.business_unit === selectedBusinessUnit);
+    }
+
     return filtered;
   };
 
@@ -90,6 +96,7 @@ function Dashboard() {
       in_progress_initiatives: filtered.filter(i => i.status === 'In Progress').slice(0, 10),
       by_department: calculateDepartmentStats(filtered),
       by_benefit: calculateBenefitStats(filtered),
+      by_business_unit: calculateBusinessUnitStats(filtered),
       pinned_initiatives: filtered.filter(i => i.is_pinned)
     };
   };
@@ -118,14 +125,26 @@ function Dashboard() {
     return Object.entries(benefitMap).map(([benefit, count]) => ({ benefit, count }));
   };
 
+  // Helper function to calculate business unit statistics
+  const calculateBusinessUnitStats = (initiatives) => {
+    const businessUnitMap = {};
+    initiatives.forEach(initiative => {
+      if (initiative.business_unit) {
+        businessUnitMap[initiative.business_unit] = (businessUnitMap[initiative.business_unit] || 0) + 1;
+      }
+    });
+    return Object.entries(businessUnitMap).map(([business_unit, count]) => ({ business_unit, count }));
+  };
+
   // Clear all filters
   const clearAllFilters = () => {
     setSelectedInitiatives([]);
     setSelectedInitiativeType('');
+    setSelectedBusinessUnit('');
   };
 
   // Get the display stats - filtered or original
-  const displayStats = (selectedInitiatives.length > 0 || selectedInitiativeType)
+  const displayStats = (selectedInitiatives.length > 0 || selectedInitiativeType || selectedBusinessUnit)
     ? getFilteredStats()
     : stats;
 
@@ -234,7 +253,7 @@ function Dashboard() {
     return <div className="error-message">{error}</div>;
   }
 
-  const hasActiveFilters = selectedInitiatives.length > 0 || selectedInitiativeType;
+  const hasActiveFilters = selectedInitiatives.length > 0 || selectedInitiativeType || selectedBusinessUnit;
 
   return (
     <div>
@@ -343,6 +362,30 @@ function Dashboard() {
               <option value="Internal AI">Internal AI</option>
               <option value="RPA">RPA</option>
               <option value="External AI">External AI</option>
+            </select>
+          </div>
+
+          {/* Business Unit Dropdown */}
+          <div style={{ flex: '0 1 200px', minWidth: '150px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', marginBottom: '6px', color: '#374151' }}>
+              Filter by Business Unit
+            </label>
+            <select
+              value={selectedBusinessUnit}
+              onChange={(e) => setSelectedBusinessUnit(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: '1px solid #d1d5db',
+                fontSize: '14px',
+                backgroundColor: 'white'
+              }}
+            >
+              <option value="">All Business Units</option>
+              {stats?.by_business_unit?.map((bu, index) => (
+                <option key={index} value={bu.business_unit}>{bu.business_unit}</option>
+              ))}
             </select>
           </div>
 
@@ -615,6 +658,27 @@ function Dashboard() {
                 </Pie>
                 <Tooltip />
               </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <p style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>No data available</p>
+          )}
+        </div>
+
+        {/* Initiatives by Business Unit */}
+        <div className="card">
+          <div className="card-header">
+            <h2>Initiatives by Business Unit</h2>
+          </div>
+          {displayStats?.by_business_unit && displayStats.by_business_unit.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={displayStats.by_business_unit}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="business_unit" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="count" fill="#10b981" />
+              </BarChart>
             </ResponsiveContainer>
           ) : (
             <p style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>No data available</p>

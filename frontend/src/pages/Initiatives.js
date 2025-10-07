@@ -173,6 +173,7 @@ function Initiatives() {
                 <tr>
                   <th>Use Case Name</th>
                   <th>Type</th>
+                  <th>Business Unit</th>
                   <th>Status</th>
                   <th>Health</th>
                   <th>Departments</th>
@@ -196,6 +197,11 @@ function Initiatives() {
                     <td>
                       <span style={{ fontSize: '13px', color: '#64748b' }}>
                         {initiative.initiative_type || 'Internal AI'}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '13px', color: '#64748b' }}>
+                        {initiative.business_unit || '-'}
                       </span>
                     </td>
                     <td>{getStatusBadge(initiative.status)}</td>

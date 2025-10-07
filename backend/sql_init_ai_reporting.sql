@@ -66,6 +66,7 @@ CREATE TABLE dbo.initiatives (
     budget_spent DECIMAL(18,2),
     health_status NVARCHAR(50) DEFAULT 'Green', -- Green, Amber, Red
     initiative_type NVARCHAR(50) DEFAULT 'Internal AI', -- Internal AI, RPA, External AI
+    business_unit NVARCHAR(100), -- Business unit for the initiative
     is_pinned BIT DEFAULT 0, -- Pinned to dashboard
     pinned_at DATETIME, -- When it was pinned
 
@@ -246,6 +247,16 @@ INSERT INTO dbo.field_options (field_name, option_value, display_order) VALUES
 ('initiative_type', 'Internal AI', 1),
 ('initiative_type', 'RPA', 2),
 ('initiative_type', 'External AI', 3),
+
+-- Business Unit
+('business_unit', 'Personal Lines', 1),
+('business_unit', 'BI', 2),
+('business_unit', 'VAPs', 3),
+('business_unit', '1Life', 4),
+('business_unit', 'GIT', 5),
+('business_unit', 'Finance', 6),
+('business_unit', 'Legal and compliance', 7),
+('business_unit', 'HR', 8),
 
 -- Update Type (for progress updates)
 ('update_type', 'Update', 1),

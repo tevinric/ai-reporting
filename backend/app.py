@@ -139,6 +139,17 @@ def get_dashboard_stats():
         benefits = [dict_from_row(cursor, row) for row in cursor.fetchall()]
         stats['by_benefit'] = benefits
 
+        # Get initiatives by business unit
+        cursor.execute("""
+            SELECT business_unit, COUNT(*) as count
+            FROM initiatives
+            WHERE business_unit IS NOT NULL
+            GROUP BY business_unit
+            ORDER BY count DESC
+        """)
+        business_units = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+        stats['by_business_unit'] = business_units
+
         # Get pinned initiatives
         cursor.execute("""
             SELECT
@@ -415,7 +426,7 @@ def get_initiatives():
         # Get departments for each initiative and trim string fields
         string_fields = ['use_case_name', 'description', 'benefit', 'strategic_objective', 'status',
                         'process_owner', 'business_owner', 'priority', 'risk_level', 'technology_stack',
-                        'health_status', 'initiative_type']
+                        'health_status', 'initiative_type', 'business_unit']
         for initiative in initiatives:
             # Trim string fields
             for field in string_fields:
@@ -454,7 +465,7 @@ def get_initiative(initiative_id):
         # Trim string fields to remove any whitespace
         string_fields = ['use_case_name', 'description', 'benefit', 'strategic_objective', 'status',
                         'process_owner', 'business_owner', 'priority', 'risk_level', 'technology_stack',
-                        'health_status', 'initiative_type']
+                        'health_status', 'initiative_type', 'business_unit']
         for field in string_fields:
             if initiative.get(field) and isinstance(initiative[field], str):
                 initiative[field] = initiative[field].strip()
@@ -496,9 +507,9 @@ def create_initiative():
                 use_case_name, description, benefit, strategic_objective, status,
                 percentage_complete, process_owner, business_owner, start_date,
                 expected_completion_date, priority, risk_level, technology_stack,
-                team_size, budget_allocated, health_status, initiative_type, created_by_name, created_by_email,
+                team_size, budget_allocated, health_status, initiative_type, business_unit, created_by_name, created_by_email,
                 modified_by_name, modified_by_email
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data.get('use_case_name'),
             data.get('description'),
@@ -517,6 +528,7 @@ def create_initiative():
             data.get('budget_allocated'),
             data.get('health_status', 'Green'),
             data.get('initiative_type', 'Internal AI'),
+            data.get('business_unit'),
             DEFAULT_USER['name'],
             DEFAULT_USER['email'],
             DEFAULT_USER['name'],
@@ -590,6 +602,7 @@ def update_initiative(initiative_id):
                 budget_spent = ?,
                 health_status = ?,
                 initiative_type = ?,
+                business_unit = ?,
                 is_featured = ?,
                 featured_month = ?,
                 modified_at = GETDATE(),
@@ -616,6 +629,7 @@ def update_initiative(initiative_id):
             data.get('budget_spent') if data.get('budget_spent') not in [None, ''] else None,
             process_string(data.get('health_status')),
             process_string(data.get('initiative_type')),
+            process_string(data.get('business_unit')),
             1 if data.get('is_featured') else 0,
             featured_month_value,
             DEFAULT_USER['name'],

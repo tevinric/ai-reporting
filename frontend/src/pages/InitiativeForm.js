@@ -28,6 +28,7 @@ function InitiativeForm() {
   const [riskOptions, setRiskOptions] = useState([]);
   const [healthStatusOptions, setHealthStatusOptions] = useState([]);
   const [initiativeTypeOptions, setInitiativeTypeOptions] = useState([]);
+  const [businessUnitOptions, setBusinessUnitOptions] = useState([]);
   const [processOwnerSuggestions, setProcessOwnerSuggestions] = useState([]);
   const [businessOwnerSuggestions, setBusinessOwnerSuggestions] = useState([]);
 
@@ -52,6 +53,7 @@ function InitiativeForm() {
     budget_spent: '',
     health_status: 'Green',
     initiative_type: 'Internal AI',
+    business_unit: '',
     is_featured: false,
     featured_month: '',
     departments: []
@@ -67,7 +69,7 @@ function InitiativeForm() {
 
   const loadFieldOptions = async () => {
     try {
-      const [benefits, objectives, statuses, departments, priorities, risks, healthStatuses, initiativeTypes] = await Promise.all([
+      const [benefits, objectives, statuses, departments, priorities, risks, healthStatuses, initiativeTypes, businessUnits] = await Promise.all([
         getFieldOptions('benefit'),
         getFieldOptions('strategic_objective'),
         getFieldOptions('status'),
@@ -75,7 +77,8 @@ function InitiativeForm() {
         getFieldOptions('priority'),
         getFieldOptions('risk_level'),
         getFieldOptions('health_status'),
-        getFieldOptions('initiative_type')
+        getFieldOptions('initiative_type'),
+        getFieldOptions('business_unit')
       ]);
 
       setBenefitOptions(benefits.data);
@@ -86,6 +89,7 @@ function InitiativeForm() {
       setRiskOptions(risks.data);
       setHealthStatusOptions(healthStatuses.data);
       setInitiativeTypeOptions(initiativeTypes.data);
+      setBusinessUnitOptions(businessUnits.data);
     } catch (err) {
       console.error('Failed to load field options', err);
     }
@@ -211,6 +215,7 @@ function InitiativeForm() {
         technology_stack: formData.technology_stack?.trim() || '',
         health_status: formData.health_status?.trim() || 'Green',
         initiative_type: formData.initiative_type?.trim() || 'Internal AI',
+        business_unit: formData.business_unit?.trim() || '',
         // Convert empty strings to null for numeric fields
         percentage_complete: formData.percentage_complete === '' ? 0 : Number(formData.percentage_complete),
         team_size: formData.team_size === '' ? null : Number(formData.team_size),
@@ -350,6 +355,20 @@ function InitiativeForm() {
                 required
               >
                 {initiativeTypeOptions.map(opt => (
+                  <option key={opt.id} value={opt.option_value}>{opt.option_value}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Business Unit</label>
+              <select
+                name="business_unit"
+                value={formData.business_unit}
+                onChange={handleChange}
+              >
+                <option value="">Select Business Unit</option>
+                {businessUnitOptions.map(opt => (
                   <option key={opt.id} value={opt.option_value}>{opt.option_value}</option>
                 ))}
               </select>
