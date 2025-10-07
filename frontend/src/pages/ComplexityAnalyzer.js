@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, History, X } from 'lucide-react';
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, ReferenceLine, Label } from 'recharts';
+import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, ReferenceLine, Label, ReferenceArea } from 'recharts';
+import ReactMarkdown from 'react-markdown';
 import api from '../services/api';
 import './ComplexityAnalyzer.css';
 
@@ -348,49 +349,149 @@ function ComplexityAnalyzer() {
               All analyzed initiatives plotted by complexity and value scores
             </p>
           </div>
-          <ResponsiveContainer width="100%" height={500}>
-            <ScatterChart margin={{ top: 20, right: 20, bottom: 60, left: 60 }}>
-              <CartesianGrid strokeDasharray="3 3" />
+          <ResponsiveContainer width="100%" height={600}>
+            <ScatterChart margin={{ top: 40, right: 40, bottom: 60, left: 60 }}>
+              {/* Background quadrant areas with colors */}
+              {/* High Value Row */}
+              <ReferenceArea x1={0} x2={33} y1={70} y2={100} fill="#10b981" fillOpacity={0.08} />
+              <ReferenceArea x1={33} x2={66} y1={70} y2={100} fill="#3b82f6" fillOpacity={0.08} />
+              <ReferenceArea x1={66} x2={100} y1={70} y2={100} fill="#f59e0b" fillOpacity={0.08} />
+
+              {/* Medium Value Row */}
+              <ReferenceArea x1={0} x2={33} y1={40} y2={70} fill="#86efac" fillOpacity={0.08} />
+              <ReferenceArea x1={33} x2={66} y1={40} y2={70} fill="#94a3b8" fillOpacity={0.08} />
+              <ReferenceArea x1={66} x2={100} y1={40} y2={70} fill="#fb923c" fillOpacity={0.08} />
+
+              {/* Low Value Row */}
+              <ReferenceArea x1={0} x2={33} y1={0} y2={40} fill="#cbd5e1" fillOpacity={0.08} />
+              <ReferenceArea x1={33} x2={66} y1={0} y2={40} fill="#fca5a5" fillOpacity={0.08} />
+              <ReferenceArea x1={66} x2={100} y1={0} y2={40} fill="#ef4444" fillOpacity={0.08} />
+
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+
               <XAxis
                 type="number"
                 dataKey="complexity_score"
                 name="Complexity Score"
                 domain={[0, 100]}
+                ticks={[0, 33, 66, 100]}
               >
-                <Label value="Complexity Score (0-100)" offset={-10} position="insideBottom" />
+                <Label value="Complexity Score →" offset={-10} position="insideBottom" style={{ fontWeight: 600 }} />
               </XAxis>
               <YAxis
                 type="number"
                 dataKey="value_score"
                 name="Value Score"
                 domain={[0, 100]}
+                ticks={[0, 40, 70, 100]}
               >
-                <Label value="Value Score (0-100)" angle={-90} position="insideLeft" />
+                <Label value="Value Score →" angle={-90} position="insideLeft" style={{ fontWeight: 600 }} />
               </YAxis>
+
               <Tooltip content={<CustomTooltip />} />
-              <Legend />
 
-              {/* Quadrant lines */}
-              <ReferenceLine x={33} stroke="#999" strokeDasharray="3 3" />
-              <ReferenceLine x={66} stroke="#999" strokeDasharray="3 3" />
-              <ReferenceLine y={40} stroke="#999" strokeDasharray="3 3" />
-              <ReferenceLine y={70} stroke="#999" strokeDasharray="3 3" />
+              {/* Quadrant divider lines */}
+              <ReferenceLine x={33} stroke="#64748b" strokeWidth={2} strokeDasharray="5 5" />
+              <ReferenceLine x={66} stroke="#64748b" strokeWidth={2} strokeDasharray="5 5" />
+              <ReferenceLine y={40} stroke="#64748b" strokeWidth={2} strokeDasharray="5 5" />
+              <ReferenceLine y={70} stroke="#64748b" strokeWidth={2} strokeDasharray="5 5" />
 
-              <Scatter name="Initiatives" data={matrixData} fill="#3b82f6">
+              <Scatter name="Initiatives" data={matrixData}>
                 {matrixData.map((entry, index) => {
+                  // Determine color based on 9 quadrants
                   let color = '#3b82f6';
-                  if (entry.complexity_score < 33 && entry.value_score >= 70) {
-                    color = '#10b981'; // Green - Low hanging fruit
-                  } else if (entry.complexity_score >= 33 && entry.complexity_score < 66 && entry.value_score >= 70) {
-                    color = '#f59e0b'; // Orange - Needs planning
-                  } else if (entry.complexity_score >= 66 && entry.value_score >= 70) {
-                    color = '#ef4444'; // Red - Needs AI COE
+                  const complexity = entry.complexity_score;
+                  const value = entry.value_score;
+
+                  if (value >= 70) {
+                    // High value row
+                    if (complexity < 33) {
+                      color = '#10b981'; // Low Hanging Fruit - Green
+                    } else if (complexity < 66) {
+                      color = '#3b82f6'; // Needs Planning - Blue
+                    } else {
+                      color = '#f59e0b'; // Needs AI COE - Orange
+                    }
+                  } else if (value >= 40) {
+                    // Medium value row
+                    if (complexity < 33) {
+                      color = '#22c55e'; // Quick Wins - Light Green
+                    } else if (complexity < 66) {
+                      color = '#64748b'; // Moderate Effort - Gray
+                    } else {
+                      color = '#fb923c'; // High Risk - Light Orange
+                    }
+                  } else {
+                    // Low value row
+                    if (complexity < 33) {
+                      color = '#94a3b8'; // Low Priority - Light Gray
+                    } else if (complexity < 66) {
+                      color = '#f87171'; // Questionable - Light Red
+                    } else {
+                      color = '#ef4444'; // Avoid - Red
+                    }
                   }
+
                   return <Cell key={`cell-${index}`} fill={color} />;
                 })}
               </Scatter>
             </ScatterChart>
           </ResponsiveContainer>
+
+          {/* Quadrant Legend */}
+          <div className="quadrant-legend">
+            <div className="legend-section">
+              <h4>High Value (70-100)</h4>
+              <div className="legend-items">
+                <div className="legend-item">
+                  <div className="legend-color" style={{ backgroundColor: '#10b981' }}></div>
+                  <span>Low Complexity: Low Hanging Fruit</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color" style={{ backgroundColor: '#3b82f6' }}></div>
+                  <span>Medium Complexity: Needs Planning</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color" style={{ backgroundColor: '#f59e0b' }}></div>
+                  <span>High Complexity: Needs AI COE</span>
+                </div>
+              </div>
+            </div>
+            <div className="legend-section">
+              <h4>Medium Value (40-70)</h4>
+              <div className="legend-items">
+                <div className="legend-item">
+                  <div className="legend-color" style={{ backgroundColor: '#22c55e' }}></div>
+                  <span>Low Complexity: Quick Wins</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color" style={{ backgroundColor: '#64748b' }}></div>
+                  <span>Medium Complexity: Moderate Effort</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color" style={{ backgroundColor: '#fb923c' }}></div>
+                  <span>High Complexity: High Risk</span>
+                </div>
+              </div>
+            </div>
+            <div className="legend-section">
+              <h4>Low Value (0-40)</h4>
+              <div className="legend-items">
+                <div className="legend-item">
+                  <div className="legend-color" style={{ backgroundColor: '#94a3b8' }}></div>
+                  <span>Low Complexity: Low Priority</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color" style={{ backgroundColor: '#f87171' }}></div>
+                  <span>Medium Complexity: Questionable</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color" style={{ backgroundColor: '#ef4444' }}></div>
+                  <span>High Complexity: Avoid</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -450,7 +551,11 @@ function ComplexityAnalyzer() {
                 className={`message ${message.role}`}
               >
                 <div className={`message-content ${message.isRecommendation ? 'isRecommendation' : ''} ${message.isMetrics ? 'isMetrics' : ''} ${message.isError ? 'isError' : ''}`}>
-                  {message.content}
+                  {message.isRecommendation ? (
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  ) : (
+                    message.content
+                  )}
 
                   {message.options && !isLoading && (
                     <div className="message-options">
