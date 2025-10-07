@@ -224,9 +224,9 @@ function ROIAssistant() {
           {messages.map((message, index) => (
             <div
               key={index}
-              className={`message ${message.role}`}
+              className={`message ${message.role} ${message.isRecommendation ? 'recommendation-message' : ''}`}
             >
-              <div className="message-content">
+              <div className={`message-content ${message.isRecommendation ? 'isRecommendation' : ''} ${message.isError ? 'isError' : ''}`}>
                 {message.content}
 
                 {message.options && !isLoading && (
