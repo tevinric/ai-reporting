@@ -66,10 +66,20 @@ export const deleteProgressUpdate = (id) => api.delete(API_ENDPOINTS.PROGRESS_UP
 // ROI Assistant
 export const roiAssistant = (data) => api.post(API_ENDPOINTS.ROI_ASSISTANT, data);
 
+// Complexity Analyzer
+export const analyzeComplexity = (data) => api.post(API_ENDPOINTS.COMPLEXITY_ANALYZER, data);
+export const getComplexityConversations = () => api.get(API_ENDPOINTS.COMPLEXITY_CONVERSATIONS);
+export const getComplexityConversation = (id) => api.get(API_ENDPOINTS.COMPLEXITY_CONVERSATION_BY_ID(id));
+export const getComplexityMatrixData = () => api.get(API_ENDPOINTS.COMPLEXITY_MATRIX_DATA);
+
 export default {
   get: api.get.bind(api),
   post: api.post.bind(api),
   put: api.put.bind(api),
   delete: api.delete.bind(api),
   roiAssistant,
+  analyzeComplexity,
+  getComplexityConversations,
+  getComplexityConversation,
+  getComplexityMatrixData,
 };

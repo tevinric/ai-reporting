@@ -2,6 +2,7 @@
 -- This script creates all necessary tables for the AI reporting application
 
 -- Drop tables if they exist (in reverse order of dependencies)
+IF OBJECT_ID('dbo.complexity_conversations', 'U') IS NOT NULL DROP TABLE dbo.complexity_conversations;
 IF OBJECT_ID('dbo.roi_conversations', 'U') IS NOT NULL DROP TABLE dbo.roi_conversations;
 IF OBJECT_ID('dbo.progress_updates', 'U') IS NOT NULL DROP TABLE dbo.progress_updates;
 IF OBJECT_ID('dbo.risks', 'U') IS NOT NULL DROP TABLE dbo.risks;
@@ -134,6 +135,21 @@ CREATE TABLE dbo.roi_conversations (
     id INT IDENTITY(1,1) PRIMARY KEY,
     user_responses NVARCHAR(MAX) NOT NULL, -- JSON object containing all user responses
     llm_recommendation NVARCHAR(MAX) NOT NULL, -- LLM generated recommendation
+    created_at DATETIME DEFAULT GETDATE(),
+    created_by_name NVARCHAR(255),
+    created_by_email NVARCHAR(255)
+);
+
+-- Table: complexity_conversations
+-- Stores Complexity Analyzer conversations for tracking and analysis
+CREATE TABLE dbo.complexity_conversations (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    initiative_name NVARCHAR(500),
+    user_responses NVARCHAR(MAX) NOT NULL, -- JSON object containing all user responses
+    complexity_score DECIMAL(5,2), -- Calculated complexity score (0-100)
+    value_score DECIMAL(5,2), -- Value score (0-100)
+    quadrant NVARCHAR(100), -- Matrix quadrant classification
+    llm_recommendation NVARCHAR(MAX) NOT NULL, -- LLM generated recommendation and gap analysis
     created_at DATETIME DEFAULT GETDATE(),
     created_by_name NVARCHAR(255),
     created_by_email NVARCHAR(255)
@@ -291,5 +307,7 @@ CREATE INDEX IX_field_options_field_name ON dbo.field_options(field_name, is_act
 CREATE INDEX IX_risks_initiative ON dbo.risks(initiative_id);
 CREATE INDEX IX_progress_updates_initiative ON dbo.progress_updates(initiative_id, created_at DESC);
 CREATE INDEX IX_roi_conversations_created_at ON dbo.roi_conversations(created_at DESC);
+CREATE INDEX IX_complexity_conversations_created_at ON dbo.complexity_conversations(created_at DESC);
+CREATE INDEX IX_complexity_conversations_user ON dbo.complexity_conversations(created_by_email, created_at DESC);
 
 GO

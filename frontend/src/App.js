@@ -8,6 +8,7 @@ import ProjectView from './pages/ProjectView';
 import FeaturedSolutions from './pages/FeaturedSolutions';
 import Management from './pages/Management';
 import ROIAssistant from './pages/ROIAssistant';
+import ComplexityAnalyzer from './pages/ComplexityAnalyzer';
 import './App.css';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
             <Route path="/initiatives/:id" element={<ProjectView />} />
             <Route path="/featured" element={<FeaturedSolutions />} />
             <Route path="/tools/roi-assistant" element={<ROIAssistant />} />
+            <Route path="/tools/complexity-analyzer" element={<ComplexityAnalyzer />} />
             <Route path="/management" element={<Management />} />
           </Routes>
         </div>

@@ -1823,5 +1823,425 @@ IMPORTANT GUIDELINES:
         logger.error(f"Error in ROI assistant: {str(e)}")
         return jsonify({'error': 'Failed to generate ROI recommendations. Please try again.'}), 500
 
+# ==================== Complexity Analyzer ====================
+
+@app.route('/api/complexity-analyzer', methods=['POST'])
+def complexity_analyzer():
+    """Analyze initiative complexity based on user responses"""
+    try:
+        data = request.json
+
+        # Calculate complexity score based on user responses
+        complexity_score = calculate_complexity_score(data)
+        value_score = calculate_value_score(data)
+        quadrant = determine_quadrant(complexity_score, value_score)
+
+        # Build the prompt from user responses
+        prompt = f"""You are an AI initiative complexity expert for TIH operating in South Africa.
+A user has provided information about an AI initiative they want to implement. Based on their responses, analyze the complexity and provide actionable recommendations.
+
+Initiative Name: {data.get('initiative_name', 'Not specified')}
+
+READINESS ASSESSMENT:
+Data Availability: {data.get('data_availability', 'Not specified')}
+Data Quality: {data.get('data_quality', 'Not specified')}
+Infrastructure Readiness: {data.get('infrastructure_readiness', 'Not specified')}
+Team Skills: {data.get('team_skills', 'Not specified')}
+Stakeholder Buy-in: {data.get('stakeholder_buyin', 'Not specified')}
+Budget Availability: {data.get('budget_availability', 'Not specified')}
+Regulatory Compliance: {data.get('regulatory_compliance', 'Not specified')}
+Integration Complexity: {data.get('integration_complexity', 'Not specified')}
+Technology Maturity: {data.get('technology_maturity', 'Not specified')}
+Expected Timeline: {data.get('expected_timeline', 'Not specified')}
+
+CALCULATED METRICS:
+Complexity Score: {complexity_score}/100 (Higher = More Complex)
+Value Score: {value_score}/100 (Higher = More Valuable)
+Classification: {quadrant}
+
+Based on this assessment, please provide:
+
+1. COMPLEXITY ANALYSIS
+   - Summarize the key complexity drivers
+   - Highlight the most challenging aspects
+   - Identify quick wins vs long-term challenges
+
+2. GAPS TO ADDRESS
+   - List specific gaps that need to be closed
+   - Prioritize gaps by impact and urgency
+   - Provide specific action items for each gap
+
+3. RECOMMENDED NEXT STEPS
+   - Provide a clear roadmap with phases
+   - Suggest specific actions for the next 30/60/90 days
+   - Include any pilot or proof-of-concept recommendations
+
+4. RESOURCE REQUIREMENTS
+   - Estimate team composition needed
+   - Identify critical skills or tools required
+   - Suggest training or hiring needs
+
+5. RISK MITIGATION
+   - Highlight key risks based on the complexity
+   - Provide mitigation strategies
+   - Suggest monitoring and checkpoints
+
+IMPORTANT GUIDELINES:
+- Write in a professional tone without using any emojis or emoticons
+- Focus on practical, actionable guidance specific to the South African insurance market
+- Be honest about challenges but provide constructive solutions
+- Consider TIH's context in your recommendations
+- Format your response clearly with headers and bullet points for readability"""
+
+        # Call OpenAI API
+        response = openai_client.chat.completions.create(
+            model="gpt-4.1",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """You are an expert AI implementation consultant specializing in insurance companies in South Africa. You provide clear, professional, actionable guidance on implementing AI initiatives. You analyze complexity, identify gaps, and provide practical roadmaps. You never use emojis and always write in a professional manner."""
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.7,
+            max_tokens=2500
+        )
+
+        recommendation = response.choices[0].message.content
+
+        # Save conversation to database
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            import json
+            cursor.execute("""
+                INSERT INTO complexity_conversations (
+                    initiative_name, user_responses, complexity_score, value_score,
+                    quadrant, llm_recommendation, created_by_name, created_by_email
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                data.get('initiative_name'),
+                json.dumps(data),
+                complexity_score,
+                value_score,
+                quadrant,
+                recommendation,
+                DEFAULT_USER['name'],
+                DEFAULT_USER['email']
+            ))
+
+            # Get the inserted ID
+            cursor.execute("SELECT @@IDENTITY")
+            conversation_id = cursor.fetchone()[0]
+
+            conn.commit()
+            conn.close()
+        except Exception as db_error:
+            logger.warning(f"Failed to save complexity conversation to database: {str(db_error)}")
+            conversation_id = None
+
+        return jsonify({
+            'recommendation': recommendation,
+            'complexity_score': complexity_score,
+            'value_score': value_score,
+            'quadrant': quadrant,
+            'conversation_id': conversation_id,
+            'status': 'success'
+        })
+
+    except Exception as e:
+        logger.error(f"Error in complexity analyzer: {str(e)}")
+        return jsonify({'error': 'Failed to analyze complexity. Please try again.'}), 500
+
+def calculate_complexity_score(data):
+    """Calculate complexity score based on user responses (0-100, higher = more complex)"""
+    score = 0
+    total_questions = 13  # Updated to match new question count
+
+    # Define scoring for each question (higher score = more complex)
+
+    # Business case clarity (inverse - less clear = more complex)
+    business_case_scores = {
+        'Very clear with quantified benefits': 0,
+        'Moderately clear': 25,
+        'Somewhat unclear': 50,
+        'Needs significant work': 75
+    }
+    score += business_case_scores.get(data.get('business_case_clarity', ''), 50)
+
+    # Data availability (inverse - less available = more complex)
+    data_avail_scores = {
+        'Readily available and accessible': 0,
+        'Available but needs gathering': 25,
+        'Partially available': 60,
+        'Not available yet': 90
+    }
+    score += data_avail_scores.get(data.get('data_availability', ''), 50)
+
+    # Data quality (inverse - lower quality = more complex)
+    data_quality_scores = {
+        'High quality and clean': 0,
+        'Moderate quality': 30,
+        'Poor quality, needs cleaning': 70,
+        'Unknown or unassessed': 60
+    }
+    score += data_quality_scores.get(data.get('data_quality', ''), 50)
+
+    # Infrastructure readiness (inverse - less ready = more complex)
+    infra_scores = {
+        'Fully ready': 0,
+        'Mostly ready, minor gaps': 20,
+        'Significant gaps exist': 60,
+        'Not ready, needs build-out': 85
+    }
+    score += infra_scores.get(data.get('infrastructure_readiness', ''), 50)
+
+    # Stakeholder buy-in (inverse - less support = more complex)
+    stakeholder_scores = {
+        'Strong support from all levels': 0,
+        'Moderate support': 30,
+        'Limited support': 65,
+        'No support secured yet': 90
+    }
+    score += stakeholder_scores.get(data.get('stakeholder_buyin', ''), 50)
+
+    # Budget availability (inverse - less budget = more complex)
+    budget_scores = {
+        'Approved and allocated': 0,
+        'Budget requested pending approval': 30,
+        'Budget uncertain': 70,
+        'No budget identified': 95
+    }
+    score += budget_scores.get(data.get('budget_availability', ''), 50)
+
+    # Regulatory compliance (higher risk = more complex)
+    compliance_scores = {
+        'Low risk, compliant': 0,
+        'Moderate risk, manageable': 35,
+        'High risk, needs review': 75,
+        'Very high risk or unknown': 95
+    }
+    score += compliance_scores.get(data.get('regulatory_compliance', ''), 50)
+
+    # Integration complexity (direct - more complex integration = higher score)
+    integration_scores = {
+        'Simple, minimal integration': 0,
+        'Moderate complexity': 35,
+        'Complex, multiple systems': 70,
+        'Very complex, enterprise-wide': 95
+    }
+    score += integration_scores.get(data.get('integration_complexity', ''), 50)
+
+    # Technology maturity (inverse - less mature = more complex)
+    tech_scores = {
+        'Proven and widely adopted': 0,
+        'Established but evolving': 25,
+        'Emerging technology': 60,
+        'Experimental or cutting-edge': 85
+    }
+    score += tech_scores.get(data.get('technology_maturity', ''), 50)
+
+    # Change management (inverse - less prepared = more complex)
+    change_scores = {
+        'Highly prepared with change plan': 0,
+        'Moderately prepared': 30,
+        'Limited preparation': 65,
+        'Not prepared': 90
+    }
+    score += change_scores.get(data.get('change_management', ''), 50)
+
+    # Data governance (inverse - weaker governance = more complex)
+    governance_scores = {
+        'Strong governance in place': 0,
+        'Adequate governance': 30,
+        'Weak governance': 70,
+        'No governance established': 90
+    }
+    score += governance_scores.get(data.get('data_governance', ''), 50)
+
+    # Expected timeline (longer timeline = more complex)
+    timeline_scores = {
+        'Under 3 months': 10,
+        '3-6 months': 35,
+        '6-12 months': 65,
+        'Over 12 months': 90
+    }
+    score += timeline_scores.get(data.get('expected_timeline', ''), 50)
+
+    # Team availability (inverse - less available = more complex)
+    team_scores = {
+        'Team fully allocated': 0,
+        'Team mostly available': 25,
+        'Limited availability': 65,
+        'Team not identified': 90
+    }
+    score += team_scores.get(data.get('team_availability', ''), 50)
+
+    return round(score / total_questions, 2)
+
+def calculate_value_score(data):
+    """Calculate value score based on expected benefits and impact (0-100)"""
+    score = 0
+
+    # Business case clarity (higher clarity = higher value confidence)
+    business_case_scores = {
+        'Very clear with quantified benefits': 25,
+        'Moderately clear': 18,
+        'Somewhat unclear': 10,
+        'Needs significant work': 5
+    }
+    score += business_case_scores.get(data.get('business_case_clarity', ''), 12)
+
+    # Data availability (more available = higher value potential)
+    data_avail_scores = {
+        'Readily available and accessible': 15,
+        'Available but needs gathering': 12,
+        'Partially available': 7,
+        'Not available yet': 3
+    }
+    score += data_avail_scores.get(data.get('data_availability', ''), 8)
+
+    # Data quality (higher quality = higher value potential)
+    data_quality_scores = {
+        'High quality and clean': 15,
+        'Moderate quality': 11,
+        'Poor quality, needs cleaning': 5,
+        'Unknown or unassessed': 7
+    }
+    score += data_quality_scores.get(data.get('data_quality', ''), 8)
+
+    # Stakeholder buy-in (more support = higher value realization)
+    stakeholder_scores = {
+        'Strong support from all levels': 20,
+        'Moderate support': 14,
+        'Limited support': 7,
+        'No support secured yet': 2
+    }
+    score += stakeholder_scores.get(data.get('stakeholder_buyin', ''), 10)
+
+    # Budget availability (approved budget = higher value feasibility)
+    budget_scores = {
+        'Approved and allocated': 15,
+        'Budget requested pending approval': 10,
+        'Budget uncertain': 5,
+        'No budget identified': 1
+    }
+    score += budget_scores.get(data.get('budget_availability', ''), 7)
+
+    # Timeline (faster delivery = higher value)
+    timeline_scores = {
+        'Under 3 months': 10,
+        '3-6 months': 8,
+        '6-12 months': 5,
+        'Over 12 months': 2
+    }
+    score += timeline_scores.get(data.get('expected_timeline', ''), 5)
+
+    return min(score, 100)
+
+def determine_quadrant(complexity_score, value_score):
+    """Determine which quadrant the initiative falls into"""
+    # Complexity thresholds
+    low_complexity = complexity_score < 33
+    medium_complexity = 33 <= complexity_score < 66
+    high_complexity = complexity_score >= 66
+
+    # Value thresholds
+    low_value = value_score < 40
+    medium_value = 40 <= value_score < 70
+    high_value = value_score >= 70
+
+    # Determine quadrant
+    if high_value and low_complexity:
+        return "Low Hanging Fruit (High Value, Low Complexity)"
+    elif high_value and medium_complexity:
+        return "Needs Planning (High Value, Medium Complexity)"
+    elif high_value and high_complexity:
+        return "Needs AI COE Planning (High Value, High Complexity)"
+    elif medium_value and low_complexity:
+        return "Quick Wins (Medium Value, Low Complexity)"
+    elif medium_value and medium_complexity:
+        return "Moderate Effort (Medium Value, Medium Complexity)"
+    elif medium_value and high_complexity:
+        return "High Risk (Medium Value, High Complexity)"
+    elif low_value and low_complexity:
+        return "Low Priority (Low Value, Low Complexity)"
+    elif low_value and medium_complexity:
+        return "Questionable (Low Value, Medium Complexity)"
+    else:  # low_value and high_complexity
+        return "Avoid (Low Value, High Complexity)"
+
+@app.route('/api/complexity-conversations', methods=['GET'])
+def get_complexity_conversations():
+    """Get all complexity conversations for the current user"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT id, initiative_name, complexity_score, value_score, quadrant, created_at
+            FROM complexity_conversations
+            WHERE created_by_email = ?
+            ORDER BY created_at DESC
+        """, DEFAULT_USER['email'])
+
+        conversations = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify(conversations)
+    except Exception as e:
+        logger.error(f"Error fetching complexity conversations: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/complexity-conversations/<int:conversation_id>', methods=['GET'])
+def get_complexity_conversation(conversation_id):
+    """Get a specific complexity conversation by ID"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT * FROM complexity_conversations
+            WHERE id = ?
+        """, conversation_id)
+
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'error': 'Conversation not found'}), 404
+
+        conversation = dict_from_row(cursor, row)
+
+        conn.close()
+        return jsonify(conversation)
+    except Exception as e:
+        logger.error(f"Error fetching complexity conversation: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/complexity-matrix-data', methods=['GET'])
+def get_complexity_matrix_data():
+    """Get all conversations for plotting on the complexity matrix"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT id, initiative_name, complexity_score, value_score, quadrant, created_at
+            FROM complexity_conversations
+            ORDER BY created_at DESC
+        """)
+
+        conversations = [dict_from_row(cursor, row) for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify(conversations)
+    except Exception as e:
+        logger.error(f"Error fetching complexity matrix data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)

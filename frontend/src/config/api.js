@@ -40,6 +40,12 @@ export const API_ENDPOINTS = {
 
   // ROI Assistant
   ROI_ASSISTANT: `${API_BASE_URL}/api/roi-assistant`,
+
+  // Complexity Analyzer
+  COMPLEXITY_ANALYZER: `${API_BASE_URL}/api/complexity-analyzer`,
+  COMPLEXITY_CONVERSATIONS: `${API_BASE_URL}/api/complexity-conversations`,
+  COMPLEXITY_CONVERSATION_BY_ID: (id) => `${API_BASE_URL}/api/complexity-conversations/${id}`,
+  COMPLEXITY_MATRIX_DATA: `${API_BASE_URL}/api/complexity-matrix-data`,
 };
 
 export default API_BASE_URL;
