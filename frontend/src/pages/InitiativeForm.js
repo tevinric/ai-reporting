@@ -54,10 +54,13 @@ function InitiativeForm() {
     health_status: 'Green',
     initiative_type: 'Internal AI',
     business_unit: '',
+    initiative_image: '',
     is_featured: false,
     featured_month: '',
     departments: []
   });
+
+  const [imagePreview, setImagePreview] = useState(null);
 
   useEffect(() => {
     loadFieldOptions();
@@ -164,10 +167,17 @@ function InitiativeForm() {
         budget_spent: data.budget_spent ?? '',
         health_status: data.health_status || 'Green',
         initiative_type: data.initiative_type || 'Internal AI',
+        business_unit: data.business_unit || '',
+        initiative_image: data.initiative_image || '',
         is_featured: data.is_featured ?? false,
         featured_month: formattedFeaturedMonth,
         departments: data.departments || []
       });
+
+      // Set image preview if exists
+      if (data.initiative_image) {
+        setImagePreview(data.initiative_image);
+      }
     } catch (err) {
       setError('Failed to load initiative');
       console.error(err);
@@ -191,6 +201,43 @@ function InitiativeForm() {
         ? prev.departments.filter(d => d !== dept)
         : [...prev.departments, dept]
     }));
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.match('image/(jpeg|jpg|png)')) {
+        setError('Please upload only JPG or PNG images');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image size must be less than 5MB');
+        return;
+      }
+
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result;
+        setFormData(prev => ({
+          ...prev,
+          initiative_image: base64String
+        }));
+        setImagePreview(base64String);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setFormData(prev => ({
+      ...prev,
+      initiative_image: ''
+    }));
+    setImagePreview(null);
   };
 
   const handleSubmit = async (e) => {
@@ -297,6 +344,41 @@ function InitiativeForm() {
               required
               placeholder="Provide a detailed description of the project"
             />
+          </div>
+
+          <div className="form-group">
+            <label>Initiative Image</label>
+            <div className="image-upload-container">
+              {imagePreview ? (
+                <div className="image-preview-wrapper">
+                  <img src={imagePreview} alt="Initiative" className="image-preview-circular" />
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="btn btn-danger"
+                    style={{ marginTop: '10px' }}
+                  >
+                    Remove Image
+                  </button>
+                </div>
+              ) : (
+                <div className="image-upload-placeholder">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png"
+                    onChange={handleImageUpload}
+                    id="image-upload"
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="image-upload" className="btn btn-secondary">
+                    Upload Image (JPG/PNG)
+                  </label>
+                  <p style={{ fontSize: '12px', color: '#64748b', marginTop: '8px' }}>
+                    Max size: 5MB
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>

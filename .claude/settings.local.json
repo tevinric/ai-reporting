@@ -3,7 +3,8 @@
     "allow": [
       "Read(//c/Users/tevin/OneDrive/One note/projects/email_traiging_sqa/**)",
       "Bash(mkdir:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": []

@@ -507,9 +507,10 @@ def create_initiative():
                 use_case_name, description, benefit, strategic_objective, status,
                 percentage_complete, process_owner, business_owner, start_date,
                 expected_completion_date, priority, risk_level, technology_stack,
-                team_size, budget_allocated, health_status, initiative_type, business_unit, created_by_name, created_by_email,
+                team_size, budget_allocated, health_status, initiative_type, business_unit,
+                initiative_image, created_by_name, created_by_email,
                 modified_by_name, modified_by_email
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data.get('use_case_name'),
             data.get('description'),
@@ -529,6 +530,7 @@ def create_initiative():
             data.get('health_status', 'Green'),
             data.get('initiative_type', 'Internal AI'),
             data.get('business_unit'),
+            data.get('initiative_image'),
             DEFAULT_USER['name'],
             DEFAULT_USER['email'],
             DEFAULT_USER['name'],
@@ -603,6 +605,7 @@ def update_initiative(initiative_id):
                 health_status = ?,
                 initiative_type = ?,
                 business_unit = ?,
+                initiative_image = ?,
                 is_featured = ?,
                 featured_month = ?,
                 modified_at = GETDATE(),
@@ -630,6 +633,7 @@ def update_initiative(initiative_id):
             process_string(data.get('health_status')),
             process_string(data.get('initiative_type')),
             process_string(data.get('business_unit')),
+            data.get('initiative_image'),
             1 if data.get('is_featured') else 0,
             featured_month_value,
             DEFAULT_USER['name'],

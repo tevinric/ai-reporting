@@ -70,6 +70,7 @@ CREATE TABLE dbo.initiatives (
     business_unit NVARCHAR(100), -- Business unit for the initiative
     is_pinned BIT DEFAULT 0, -- Pinned to dashboard
     pinned_at DATETIME, -- When it was pinned
+    initiative_image NVARCHAR(MAX), -- Base64 encoded image (JPG/PNG)
 
     -- Audit fields
     created_at DATETIME DEFAULT GETDATE(),

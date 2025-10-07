@@ -187,12 +187,27 @@ function Initiatives() {
                 {filteredInitiatives.map(initiative => (
                   <tr key={initiative.id}>
                     <td>
-                      <strong>{initiative.use_case_name}</strong>
-                      <br />
-                      <span style={{ fontSize: '12px', color: '#64748b' }}>
-                        {initiative.description?.substring(0, 60)}
-                        {initiative.description?.length > 60 ? '...' : ''}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        {initiative.initiative_image ? (
+                          <img
+                            src={initiative.initiative_image}
+                            alt={initiative.use_case_name}
+                            className="initiative-avatar"
+                          />
+                        ) : (
+                          <div className="initiative-avatar-placeholder">
+                            {initiative.use_case_name?.charAt(0)?.toUpperCase() || 'I'}
+                          </div>
+                        )}
+                        <div>
+                          <strong>{initiative.use_case_name}</strong>
+                          <br />
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>
+                            {initiative.description?.substring(0, 60)}
+                            {initiative.description?.length > 60 ? '...' : ''}
+                          </span>
+                        </div>
+                      </div>
                     </td>
                     <td>
                       <span style={{ fontSize: '13px', color: '#64748b' }}>

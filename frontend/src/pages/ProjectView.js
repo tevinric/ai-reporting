@@ -362,13 +362,28 @@ function ProjectView() {
   return (
     <div>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
+        <div style={{ flex: 1 }}>
           <button onClick={() => navigate('/initiatives')} className="btn btn-secondary" style={{ marginBottom: '12px' }}>
             <ArrowLeft size={18} />
             Back to Initiatives
           </button>
-          <h1>{initiative.use_case_name}</h1>
-          <p>{initiative.description}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '12px' }}>
+            {initiative.initiative_image ? (
+              <img
+                src={initiative.initiative_image}
+                alt={initiative.use_case_name}
+                className="initiative-avatar-large"
+              />
+            ) : (
+              <div className="initiative-avatar-large-placeholder">
+                {initiative.use_case_name?.charAt(0)?.toUpperCase() || 'I'}
+              </div>
+            )}
+            <div>
+              <h1 style={{ margin: 0 }}>{initiative.use_case_name}</h1>
+              <p style={{ margin: '8px 0 0 0' }}>{initiative.description}</p>
+            </div>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button onClick={() => setShowRiskModal(true)} className="btn btn-secondary">
