@@ -247,6 +247,42 @@ function ProjectView() {
     return <span className="stat-change">No change from last month</span>;
   };
 
+  // Calculate YTD (Year to Date) metrics
+  const calculateYTDMetrics = () => {
+    const currentYear = new Date().getFullYear();
+    const ytdMetrics = metrics.filter(metric => {
+      const metricYear = new Date(metric.metric_period + '-01').getFullYear();
+      return metricYear === currentYear;
+    });
+
+    if (ytdMetrics.length === 0) return null;
+
+    return {
+      time_saved_hours: ytdMetrics.reduce((sum, m) => sum + (m.time_saved_hours || 0), 0),
+      cost_saved_rands: ytdMetrics.reduce((sum, m) => sum + (m.cost_saved_rands || 0), 0),
+      revenue_increase_rands: ytdMetrics.reduce((sum, m) => sum + (m.revenue_increase_rands || 0), 0),
+      customer_experience_score: ytdMetrics.reduce((sum, m) => sum + (m.customer_experience_score || 0), 0) / ytdMetrics.length,
+      model_accuracy: ytdMetrics.reduce((sum, m) => sum + (m.model_accuracy || 0), 0) / ytdMetrics.length,
+      user_adoption_rate: ytdMetrics.reduce((sum, m) => sum + (m.user_adoption_rate || 0), 0) / ytdMetrics.length,
+      months_count: ytdMetrics.length
+    };
+  };
+
+  // Calculate All Time metrics
+  const calculateAllTimeMetrics = () => {
+    if (metrics.length === 0) return null;
+
+    return {
+      time_saved_hours: metrics.reduce((sum, m) => sum + (m.time_saved_hours || 0), 0),
+      cost_saved_rands: metrics.reduce((sum, m) => sum + (m.cost_saved_rands || 0), 0),
+      revenue_increase_rands: metrics.reduce((sum, m) => sum + (m.revenue_increase_rands || 0), 0),
+      customer_experience_score: metrics.reduce((sum, m) => sum + (m.customer_experience_score || 0), 0) / metrics.length,
+      model_accuracy: metrics.reduce((sum, m) => sum + (m.model_accuracy || 0), 0) / metrics.length,
+      user_adoption_rate: metrics.reduce((sum, m) => sum + (m.user_adoption_rate || 0), 0) / metrics.length,
+      months_count: metrics.length
+    };
+  };
+
   if (loading) {
     return <div className="loading">Loading project data...</div>;
   }
@@ -257,6 +293,8 @@ function ProjectView() {
 
   const currentMetric = metrics[0];
   const previousMetric = metrics[1];
+  const ytdMetrics = calculateYTDMetrics();
+  const allTimeMetrics = calculateAllTimeMetrics();
 
   return (
     <div>
@@ -391,6 +429,92 @@ function ProjectView() {
               <span className="stat-label">User Adoption Rate</span>
               <div className="stat-value">{currentMetric.user_adoption_rate || 0}%</div>
               {previousMetric && getTrendIndicator(currentMetric.user_adoption_rate, previousMetric.user_adoption_rate)}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* YTD Metrics */}
+      {ytdMetrics && (
+        <>
+          <div className="card-header" style={{ marginTop: '24px', marginBottom: '16px' }}>
+            <h2>YTD Metrics (Year to Date)</h2>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
+              Aggregated metrics for {ytdMetrics.months_count} month{ytdMetrics.months_count > 1 ? 's' : ''} in {new Date().getFullYear()}
+            </p>
+          </div>
+          <div className="stats-grid">
+            <div className="stat-card">
+              <span className="stat-label">Time Saved (Total Hours)</span>
+              <div className="stat-value">{Math.round(ytdMetrics.time_saved_hours || 0)}</div>
+            </div>
+
+            <div className="stat-card success">
+              <span className="stat-label">Cost Saved (Total)</span>
+              <div className="stat-value">R{Math.round(ytdMetrics.cost_saved_rands || 0).toLocaleString()}</div>
+            </div>
+
+            <div className="stat-card warning">
+              <span className="stat-label">Revenue Increase (Total)</span>
+              <div className="stat-value">R{Math.round(ytdMetrics.revenue_increase_rands || 0).toLocaleString()}</div>
+            </div>
+
+            <div className="stat-card info">
+              <span className="stat-label">Customer Experience Score (Avg)</span>
+              <div className="stat-value">{(ytdMetrics.customer_experience_score || 0).toFixed(1)}/10</div>
+            </div>
+
+            <div className="stat-card">
+              <span className="stat-label">Model Accuracy (Avg)</span>
+              <div className="stat-value">{(ytdMetrics.model_accuracy || 0).toFixed(1)}%</div>
+            </div>
+
+            <div className="stat-card">
+              <span className="stat-label">User Adoption Rate (Avg)</span>
+              <div className="stat-value">{(ytdMetrics.user_adoption_rate || 0).toFixed(1)}%</div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* All Time Metrics */}
+      {allTimeMetrics && (
+        <>
+          <div className="card-header" style={{ marginTop: '24px', marginBottom: '16px' }}>
+            <h2>All Time Metrics</h2>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
+              Aggregated metrics from start of initiative ({allTimeMetrics.months_count} month{allTimeMetrics.months_count > 1 ? 's' : ''})
+            </p>
+          </div>
+          <div className="stats-grid">
+            <div className="stat-card">
+              <span className="stat-label">Time Saved (Total Hours)</span>
+              <div className="stat-value">{Math.round(allTimeMetrics.time_saved_hours || 0)}</div>
+            </div>
+
+            <div className="stat-card success">
+              <span className="stat-label">Cost Saved (Total)</span>
+              <div className="stat-value">R{Math.round(allTimeMetrics.cost_saved_rands || 0).toLocaleString()}</div>
+            </div>
+
+            <div className="stat-card warning">
+              <span className="stat-label">Revenue Increase (Total)</span>
+              <div className="stat-value">R{Math.round(allTimeMetrics.revenue_increase_rands || 0).toLocaleString()}</div>
+            </div>
+
+            <div className="stat-card info">
+              <span className="stat-label">Customer Experience Score (Avg)</span>
+              <div className="stat-value">{(allTimeMetrics.customer_experience_score || 0).toFixed(1)}/10</div>
+            </div>
+
+            <div className="stat-card">
+              <span className="stat-label">Model Accuracy (Avg)</span>
+              <div className="stat-value">{(allTimeMetrics.model_accuracy || 0).toFixed(1)}%</div>
+            </div>
+
+            <div className="stat-card">
+              <span className="stat-label">User Adoption Rate (Avg)</span>
+              <div className="stat-value">{(allTimeMetrics.user_adoption_rate || 0).toFixed(1)}%</div>
             </div>
           </div>
         </>
