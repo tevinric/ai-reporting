@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import api from '../services/api';
 import './ROIAssistant.css';
 
@@ -227,7 +229,11 @@ function ROIAssistant() {
               className={`message ${message.role} ${message.isRecommendation ? 'recommendation-message' : ''}`}
             >
               <div className={`message-content ${message.isRecommendation ? 'isRecommendation' : ''} ${message.isError ? 'isError' : ''}`}>
-                {message.content}
+                {message.isRecommendation ? (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                ) : (
+                  message.content
+                )}
 
                 {message.options && !isLoading && (
                   <div className="message-options">

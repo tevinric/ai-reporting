@@ -365,25 +365,44 @@
 }
 
 /* Markdown Rendering Styles */
+.message-content.isRecommendation {
+  line-height: 1.6;
+}
+
+.message-content.isRecommendation > *:first-child {
+  margin-top: 0 !important;
+}
+
+.message-content.isRecommendation > *:last-child {
+  margin-bottom: 0 !important;
+}
+
 .message-content.isRecommendation h1,
 .message-content.isRecommendation h2,
 .message-content.isRecommendation h3 {
-  margin-top: 1em;
-  margin-bottom: 0.5em;
+  margin-top: 1.2em;
+  margin-bottom: 0.6em;
   color: #1e293b;
   font-weight: 600;
+  line-height: 1.3;
+}
+
+.message-content.isRecommendation h1:first-child,
+.message-content.isRecommendation h2:first-child,
+.message-content.isRecommendation h3:first-child {
+  margin-top: 0;
 }
 
 .message-content.isRecommendation h1 {
-  font-size: 1.5em;
+  font-size: 1.4em;
   border-bottom: 2px solid #e2e8f0;
   padding-bottom: 0.3em;
 }
 
 .message-content.isRecommendation h2 {
-  font-size: 1.3em;
+  font-size: 1.25em;
   border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 0.3em;
+  padding-bottom: 0.25em;
 }
 
 .message-content.isRecommendation h3 {
@@ -391,19 +410,23 @@
 }
 
 .message-content.isRecommendation p {
-  margin: 0.8em 0;
-  line-height: 1.8;
+  margin: 0.6em 0;
+  line-height: 1.7;
 }
 
 .message-content.isRecommendation ul,
 .message-content.isRecommendation ol {
-  margin: 0.8em 0;
+  margin: 0.6em 0;
   padding-left: 1.5em;
 }
 
 .message-content.isRecommendation li {
-  margin: 0.4em 0;
+  margin: 0.3em 0;
   line-height: 1.6;
+}
+
+.message-content.isRecommendation li > p {
+  margin: 0.2em 0;
 }
 
 .message-content.isRecommendation strong {
@@ -418,30 +441,31 @@
 
 .message-content.isRecommendation code {
   background: #f1f5f9;
-  padding: 2px 6px;
+  padding: 2px 5px;
   border-radius: 3px;
-  font-family: 'Courier New', monospace;
-  font-size: 0.9em;
+  font-family: 'Courier New', Consolas, Monaco, monospace;
+  font-size: 0.88em;
   color: #0f172a;
 }
 
 .message-content.isRecommendation pre {
   background: #f1f5f9;
-  padding: 12px;
+  padding: 10px 12px;
   border-radius: 6px;
   overflow-x: auto;
-  margin: 1em 0;
+  margin: 0.8em 0;
 }
 
 .message-content.isRecommendation pre code {
   background: transparent;
   padding: 0;
+  font-size: 0.9em;
 }
 
 .message-content.isRecommendation blockquote {
   border-left: 4px solid #3b82f6;
   padding-left: 1em;
-  margin: 1em 0;
+  margin: 0.8em 0;
   color: #475569;
   font-style: italic;
 }
@@ -449,7 +473,7 @@
 .message-content.isRecommendation hr {
   border: none;
   border-top: 2px solid #e2e8f0;
-  margin: 1.5em 0;
+  margin: 1.2em 0;
 }
 
 .message-content.isRecommendation a {
@@ -461,22 +485,49 @@
   color: #2563eb;
 }
 
+/* Table Styles */
 .message-content.isRecommendation table {
   width: 100%;
   border-collapse: collapse;
   margin: 1em 0;
+  font-size: 0.92em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  overflow: hidden;
 }
 
-.message-content.isRecommendation th,
-.message-content.isRecommendation td {
-  border: 1px solid #e2e8f0;
-  padding: 8px 12px;
-  text-align: left;
+.message-content.isRecommendation thead {
+  background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
 }
 
 .message-content.isRecommendation th {
-  background: #f1f5f9;
+  background: #3b82f6;
+  color: white;
   font-weight: 600;
+  text-align: left;
+  padding: 10px 14px;
+  border: 1px solid #2563eb;
+  font-size: 0.95em;
+}
+
+.message-content.isRecommendation td {
+  border: 1px solid #e2e8f0;
+  padding: 8px 14px;
+  text-align: left;
+  background: white;
+}
+
+.message-content.isRecommendation tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+.message-content.isRecommendation tbody tr:hover td {
+  background: #f1f5f9;
+  transition: background 0.2s;
+}
+
+.message-content.isRecommendation table p {
+  margin: 0.2em 0;
 }
 
 /* Responsive */

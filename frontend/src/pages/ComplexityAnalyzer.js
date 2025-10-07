@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, History, X } from 'lucide-react';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, ReferenceLine, Label, ReferenceArea } from 'recharts';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import api from '../services/api';
 import './ComplexityAnalyzer.css';
 
@@ -552,7 +553,7 @@ function ComplexityAnalyzer() {
               >
                 <div className={`message-content ${message.isRecommendation ? 'isRecommendation' : ''} ${message.isMetrics ? 'isMetrics' : ''} ${message.isError ? 'isError' : ''}`}>
                   {message.isRecommendation ? (
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                   ) : (
                     message.content
                   )}
