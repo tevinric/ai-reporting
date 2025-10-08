@@ -342,7 +342,7 @@ def get_period_drilldown(period):
 
 @app.route('/api/dashboard/metric/<metric_name>', methods=['GET'])
 def get_metric_drilldown(metric_name):
-    """Get all initiatives tracking a specific metric across all periods"""
+    """Get all initiatives tracking a specific metric across all periods with percentage contribution"""
     try:
         import json
         conn = get_db_connection()
@@ -364,6 +364,8 @@ def get_metric_drilldown(metric_name):
         """)
 
         initiatives_by_period = {}
+        period_totals = {}
+
         for row in cursor.fetchall():
             initiative_id = row[0]
             use_case_name = row[1]
@@ -376,23 +378,139 @@ def get_metric_drilldown(metric_name):
                 try:
                     metrics = json.loads(additional_metrics_json)
                     if metric_name in metrics:
+                        metric_value = metrics[metric_name].get('value', 0)
+
+                        # Try to convert to float for calculation
+                        try:
+                            numeric_value = float(metric_value) if metric_value else 0
+                        except (ValueError, TypeError):
+                            numeric_value = 0
+
                         if period not in initiatives_by_period:
                             initiatives_by_period[period] = []
+                            period_totals[period] = 0
+
+                        period_totals[period] += numeric_value
 
                         initiatives_by_period[period].append({
                             'id': initiative_id,
                             'use_case_name': use_case_name,
                             'departments': departments,
                             'value': metrics[metric_name].get('value'),
+                            'numeric_value': numeric_value,
                             'comments': metrics[metric_name].get('comments')
                         })
                 except:
                     pass
 
+        # Calculate percentages for each initiative
+        for period, initiatives in initiatives_by_period.items():
+            total = period_totals.get(period, 0)
+            for initiative in initiatives:
+                if total > 0:
+                    initiative['percentage_contribution'] = (initiative['numeric_value'] / total) * 100
+                else:
+                    initiative['percentage_contribution'] = 0
+
         conn.close()
-        return jsonify({'metric_name': metric_name, 'by_period': initiatives_by_period})
+        return jsonify({
+            'metric_name': metric_name,
+            'by_period': initiatives_by_period,
+            'period_totals': period_totals
+        })
     except Exception as e:
         logger.error(f"Error fetching metric drilldown: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dashboard/category/<category>', methods=['GET'])
+def get_initiatives_by_category(category):
+    """Get initiatives by category (all, completed, in_progress, new_this_month)"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Base query to get initiative details
+        base_query = """
+            SELECT
+                i.id,
+                i.use_case_name,
+                i.description,
+                i.status,
+                i.health_status,
+                i.percentage_complete,
+                i.benefit,
+                i.strategic_objective,
+                i.initiative_type,
+                i.business_unit,
+                i.created_at,
+                i.initiative_image,
+                STRING_AGG(id_dept.department, ', ') as departments
+            FROM initiatives i
+            LEFT JOIN initiative_departments id_dept ON i.id = id_dept.initiative_id
+        """
+
+        # Add WHERE clause based on category
+        if category == 'completed':
+            where_clause = "WHERE i.status = 'Live (Complete)'"
+        elif category == 'in_progress':
+            where_clause = "WHERE i.status = 'In Progress'"
+        elif category == 'new_this_month':
+            where_clause = """
+                WHERE YEAR(i.created_at) = YEAR(GETDATE())
+                AND MONTH(i.created_at) = MONTH(GETDATE())
+            """
+        elif category == 'all':
+            where_clause = "WHERE 1=1"
+        else:
+            return jsonify({'error': 'Invalid category'}), 400
+
+        query = f"""
+            {base_query}
+            {where_clause}
+            GROUP BY i.id, i.use_case_name, i.description, i.status, i.health_status,
+                     i.percentage_complete, i.benefit, i.strategic_objective,
+                     i.initiative_type, i.business_unit, i.created_at, i.initiative_image
+            ORDER BY i.use_case_name
+        """
+
+        cursor.execute(query)
+
+        initiatives = []
+        for row in cursor.fetchall():
+            initiatives.append({
+                'id': row[0],
+                'use_case_name': row[1],
+                'description': row[2],
+                'status': row[3],
+                'health_status': row[4],
+                'percentage_complete': float(row[5]) if row[5] else 0,
+                'benefit': row[6],
+                'strategic_objective': row[7],
+                'initiative_type': row[8],
+                'business_unit': row[9],
+                'created_at': row[10].isoformat() if row[10] else None,
+                'initiative_image': row[11],
+                'departments': row[12]
+            })
+
+        conn.close()
+
+        # Get category display name
+        category_names = {
+            'all': 'All Initiatives',
+            'completed': 'Completed Initiatives',
+            'in_progress': 'In Progress Initiatives',
+            'new_this_month': 'New This Month'
+        }
+
+        return jsonify({
+            'category': category,
+            'category_name': category_names.get(category, category),
+            'count': len(initiatives),
+            'initiatives': initiatives
+        })
+    except Exception as e:
+        logger.error(f"Error fetching initiatives by category: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # ==================== Initiatives CRUD ====================

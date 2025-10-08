@@ -16,6 +16,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [drilldownData, setDrilldownData] = useState(null);
+  const [categoryData, setCategoryData] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -188,8 +189,21 @@ function Dashboard() {
     }
   };
 
+  const handleCategoryClick = async (category) => {
+    try {
+      const response = await axios.get(`${API_ENDPOINTS.DASHBOARD_STATS}/category/${category}`);
+      setCategoryData(response.data);
+    } catch (err) {
+      console.error('Failed to load category data', err);
+    }
+  };
+
   const closeDrilldown = () => {
     setDrilldownData(null);
+  };
+
+  const closeCategoryModal = () => {
+    setCategoryData(null);
   };
 
   const handlePinToggle = async (initiativeId, isPinned) => {
@@ -408,7 +422,20 @@ function Dashboard() {
 
       {/* Key Statistics */}
       <div className="stats-grid">
-        <div className="stat-card">
+        <div
+          className="stat-card"
+          style={{ cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
+          onClick={() => handleCategoryClick('all')}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+          title="Click to view all initiatives"
+        >
           <span className="stat-label">Total Initiatives</span>
           <div className="stat-value">{displayStats?.total_initiatives || 0}</div>
           <div className="stat-change">
@@ -417,7 +444,20 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="stat-card success">
+        <div
+          className="stat-card success"
+          style={{ cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
+          onClick={() => handleCategoryClick('completed')}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+          title="Click to view completed initiatives"
+        >
           <span className="stat-label">Completed</span>
           <div className="stat-value">{displayStats?.completed_count || 0}</div>
           <div className="stat-change positive">
@@ -426,7 +466,20 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="stat-card warning">
+        <div
+          className="stat-card warning"
+          style={{ cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
+          onClick={() => handleCategoryClick('in_progress')}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+          title="Click to view in-progress initiatives"
+        >
           <span className="stat-label">In Progress</span>
           <div className="stat-value">{displayStats?.in_progress_count || 0}</div>
           <div className="stat-change">
@@ -435,7 +488,20 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="stat-card info">
+        <div
+          className="stat-card info"
+          style={{ cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
+          onClick={() => handleCategoryClick('new_this_month')}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+          title="Click to view new initiatives this month"
+        >
           <span className="stat-label">New This Month</span>
           <div className="stat-value">{displayStats?.new_initiatives_count || 0}</div>
           <div className="stat-change positive">
@@ -730,7 +796,21 @@ function Dashboard() {
                   const cardColors = ['', 'success', 'warning', 'info'];
 
                   return (
-                    <div key={metricName} className={`stat-card ${cardColors[index % cardColors.length]}`}>
+                    <div
+                      key={metricName}
+                      className={`stat-card ${cardColors[index % cardColors.length]}`}
+                      style={{ cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
+                      onClick={() => handleMetricClick(metricName)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                      title={`Click to see breakdown for ${metricName}`}
+                    >
                       <span className="stat-label">{metricName}</span>
                       <div className="stat-value">{total.toFixed(2)}</div>
                       <div className="stat-change">
@@ -1061,6 +1141,7 @@ function Dashboard() {
                               <th>Initiative</th>
                               <th>Departments</th>
                               <th>Value</th>
+                              <th>Contribution</th>
                               <th>Comments</th>
                               <th>Actions</th>
                             </tr>
@@ -1071,6 +1152,28 @@ function Dashboard() {
                                 <td><strong>{initiative.use_case_name}</strong></td>
                                 <td style={{ fontSize: '13px' }}>{initiative.departments || '-'}</td>
                                 <td><strong>{initiative.value}</strong></td>
+                                <td>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div style={{
+                                      flex: 1,
+                                      height: '8px',
+                                      backgroundColor: '#e5e7eb',
+                                      borderRadius: '4px',
+                                      overflow: 'hidden',
+                                      minWidth: '60px'
+                                    }}>
+                                      <div style={{
+                                        width: `${initiative.percentage_contribution || 0}%`,
+                                        height: '100%',
+                                        backgroundColor: '#3b82f6',
+                                        transition: 'width 0.3s ease'
+                                      }}></div>
+                                    </div>
+                                    <span style={{ fontSize: '13px', fontWeight: '600', minWidth: '45px' }}>
+                                      {(initiative.percentage_contribution || 0).toFixed(1)}%
+                                    </span>
+                                  </div>
+                                </td>
                                 <td style={{ fontSize: '12px', fontStyle: 'italic' }}>{initiative.comments || '-'}</td>
                                 <td>
                                   <button
@@ -1096,6 +1199,130 @@ function Dashboard() {
             </div>
             <div className="modal-footer">
               <button onClick={closeDrilldown} className="btn btn-secondary">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Modal */}
+      {categoryData && (
+        <div className="modal-overlay" onClick={closeCategoryModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '1000px', maxHeight: '80vh', overflow: 'auto' }}>
+            <div className="modal-header">
+              <div>
+                <h2>{categoryData.category_name}</h2>
+                <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
+                  Total: {categoryData.count} initiative{categoryData.count !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <button onClick={closeCategoryModal} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px' }}>
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {categoryData.initiatives && categoryData.initiatives.length > 0 ? (
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Initiative</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Health</th>
+                        <th>Progress</th>
+                        <th>Departments</th>
+                        <th>Benefit</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {categoryData.initiatives.map(initiative => (
+                        <tr key={initiative.id}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              {initiative.initiative_image ? (
+                                <img
+                                  src={initiative.initiative_image}
+                                  alt={initiative.use_case_name}
+                                  className="initiative-avatar"
+                                />
+                              ) : (
+                                <div className="initiative-avatar-placeholder">
+                                  {initiative.use_case_name?.charAt(0) || 'I'}
+                                </div>
+                              )}
+                              <div>
+                                <strong>{initiative.use_case_name}</strong>
+                                {initiative.description && (
+                                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                                    {initiative.description.substring(0, 60)}...
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '13px' }}>{initiative.initiative_type || 'Internal AI'}</td>
+                          <td>
+                            <span className={`badge ${
+                              initiative.status === 'Live (Complete)' ? 'badge-success' :
+                              initiative.status === 'In Progress' ? 'badge-warning' : 'badge-info'
+                            }`}>
+                              {initiative.status}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div style={{
+                                width: '12px',
+                                height: '12px',
+                                borderRadius: '50%',
+                                backgroundColor:
+                                  (initiative.health_status || '').toLowerCase() === 'green' ? '#10b981' :
+                                  (initiative.health_status || '').toLowerCase() === 'amber' ? '#f59e0b' : '#ef4444'
+                              }}></div>
+                              <span style={{ fontSize: '13px' }}>{initiative.health_status || 'Green'}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div className="progress-bar" style={{ flex: 1, minWidth: '60px' }}>
+                                <div
+                                  className="progress-bar-fill"
+                                  style={{ width: `${initiative.percentage_complete || 0}%` }}
+                                ></div>
+                              </div>
+                              <span style={{ fontSize: '12px', fontWeight: '600', minWidth: '35px' }}>
+                                {initiative.percentage_complete || 0}%
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '13px' }}>{initiative.departments || '-'}</td>
+                          <td style={{ fontSize: '13px' }}>{initiative.benefit || '-'}</td>
+                          <td>
+                            <button
+                              onClick={() => {
+                                closeCategoryModal();
+                                navigate(`/initiatives/${initiative.id}`);
+                              }}
+                              className="btn btn-primary"
+                              style={{ padding: '4px 8px', fontSize: '12px' }}
+                            >
+                              <Eye size={14} /> View
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>No initiatives found</p>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button onClick={closeCategoryModal} className="btn btn-secondary">
                 Close
               </button>
             </div>
