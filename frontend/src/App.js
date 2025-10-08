@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useIsAuthenticated, useMsal } from '@azure/msal-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navigation from './components/Navigation';
@@ -13,25 +13,6 @@ import Management from './pages/Management';
 import ROIAssistant from './pages/ROIAssistant';
 import ComplexityAnalyzer from './pages/ComplexityAnalyzer';
 import './App.css';
-
-function AuthHandler() {
-  const { instance, inProgress } = useMsal();
-  const isAuthenticated = useIsAuthenticated();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (inProgress === 'none' && isAuthenticated) {
-      const currentPath = window.location.pathname;
-
-      if (currentPath === '/login') {
-        console.log('Authenticated user on login page, redirecting to home');
-        navigate('/', { replace: true });
-      }
-    }
-  }, [isAuthenticated, inProgress, navigate]);
-
-  return null;
-}
 
 function ProtectedRoute({ children }) {
   const isAuthenticated = useIsAuthenticated();
@@ -63,7 +44,6 @@ function AppContent() {
 
   return (
     <Router>
-      <AuthHandler />
       <div className="app-container">
         {isAuthenticated && <Navigation />}
         <div className="main-content">

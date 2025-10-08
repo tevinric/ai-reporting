@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useMsal } from '@azure/msal-react';
+import { useMsal, useIsAuthenticated } from '@azure/msal-react';
+import { useNavigate } from 'react-router-dom';
 import { loginRequest, validateConfig } from '../config/authConfig';
 import { Shield, CheckCircle, BarChart3, Lock, AlertCircle, Bot } from 'lucide-react';
 import '../styles/Login.css';
 
 const Login = () => {
     const { instance, accounts, inProgress } = useMsal();
+    const isAuthenticated = useIsAuthenticated();
+    const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -14,6 +17,13 @@ const Login = () => {
             setError('Azure configuration is incomplete. Please check environment variables.');
         }
     }, []);
+
+    useEffect(() => {
+        if (isAuthenticated && inProgress === 'none') {
+            console.log('User authenticated, redirecting to dashboard...');
+            navigate('/', { replace: true });
+        }
+    }, [isAuthenticated, inProgress, navigate]);
 
     const handleLogin = async () => {
         setError(null);
@@ -27,14 +37,7 @@ const Login = () => {
             }
 
             console.log('Initiating Entra ID redirect login...');
-            await instance.loginRedirect({
-                ...loginRequest,
-                redirectStartPage: window.location.href,
-                onRedirectNavigate: (url) => {
-                    console.log('Redirecting to:', url);
-                    return true;
-                }
-            });
+            await instance.loginRedirect(loginRequest);
 
         } catch (error) {
             console.error('Entra ID login failed:', error);

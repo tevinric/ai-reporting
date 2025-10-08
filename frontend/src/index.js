@@ -10,11 +10,21 @@ const msalInstance = new PublicClientApplication(msalConfig);
 
 // Handle the redirect promise when the page loads
 msalInstance.initialize().then(() => {
-  const accounts = msalInstance.getAllAccounts();
-  if (accounts.length > 0) {
-    msalInstance.setActiveAccount(accounts[0]);
+  return msalInstance.handleRedirectPromise();
+}).then((tokenResponse) => {
+  // Handle redirect response
+  if (tokenResponse !== null) {
+    console.log('Login redirect successful:', tokenResponse.account);
+    msalInstance.setActiveAccount(tokenResponse.account);
+  } else {
+    // Check if there's already an account
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      msalInstance.setActiveAccount(accounts[0]);
+    }
   }
 
+  // Add event callback for login success
   msalInstance.addEventCallback((event) => {
     if (event.eventType === EventType.LOGIN_SUCCESS && event.payload.account) {
       const account = event.payload.account;
@@ -22,22 +32,27 @@ msalInstance.initialize().then(() => {
     }
   });
 
-  msalInstance.handleRedirectPromise().then((tokenResponse) => {
-    if (tokenResponse !== null) {
-      msalInstance.setActiveAccount(tokenResponse.account);
-    }
-  }).catch((error) => {
-    console.error('Redirect error:', error);
-  });
+  // Render app after authentication is handled
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(
+    <React.StrictMode>
+      <MsalProvider instance={msalInstance}>
+        <App />
+      </MsalProvider>
+    </React.StrictMode>
+  );
+}).catch((error) => {
+  console.error('Authentication initialization error:', error);
+
+  // Still render the app even if there's an error
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(
+    <React.StrictMode>
+      <MsalProvider instance={msalInstance}>
+        <App />
+      </MsalProvider>
+    </React.StrictMode>
+  );
 });
 
 export { msalInstance };
-
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <MsalProvider instance={msalInstance}>
-      <App />
-    </MsalProvider>
-  </React.StrictMode>
-);
