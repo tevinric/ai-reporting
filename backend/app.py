@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import pyodbc
 import os
@@ -835,6 +835,322 @@ def unpin_initiative(initiative_id):
         return jsonify({'message': 'Initiative unpinned successfully'})
     except Exception as e:
         logger.error(f"Error unpinning initiative: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/initiatives/export', methods=['GET'])
+def export_initiatives_to_excel():
+    """Export all initiatives and related data to Excel with multiple sheets"""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+        import json
+        from io import BytesIO
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Create workbook
+        wb = Workbook()
+        wb.remove(wb.active)  # Remove default sheet
+
+        # Define styles
+        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+        # ========== SHEET 1: Initiatives ==========
+        ws_initiatives = wb.create_sheet("Initiatives")
+
+        # Headers for initiatives
+        initiative_headers = [
+            'ID', 'Use Case Name', 'Description', 'Benefit', 'Strategic Objective',
+            'Status', 'Percentage Complete', 'Process Owner', 'Business Owner',
+            'Start Date', 'Expected Completion', 'Actual Completion', 'Priority',
+            'Risk Level', 'Technology Stack', 'Team Size', 'Budget Allocated',
+            'Budget Spent', 'Health Status', 'Initiative Type', 'Business Unit',
+            'Is Pinned', 'Is Featured', 'Featured Month', 'Created At',
+            'Created By Name', 'Created By Email', 'Modified At',
+            'Modified By Name', 'Modified By Email'
+        ]
+
+        ws_initiatives.append(initiative_headers)
+
+        # Style headers
+        for cell in ws_initiatives[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = border
+
+        # Fetch initiatives
+        cursor.execute("SELECT * FROM initiatives ORDER BY use_case_name")
+        initiatives = cursor.fetchall()
+
+        for row in initiatives:
+            ws_initiatives.append([
+                row[0],  # id
+                row[1],  # use_case_name
+                row[2],  # description
+                row[3],  # benefit
+                row[4],  # strategic_objective
+                row[5],  # status
+                float(row[6]) if row[6] else 0,  # percentage_complete
+                row[7],  # process_owner
+                row[8],  # business_owner
+                row[9].strftime('%Y-%m-%d') if row[9] else '',  # start_date
+                row[10].strftime('%Y-%m-%d') if row[10] else '',  # expected_completion_date
+                row[11].strftime('%Y-%m-%d') if row[11] else '',  # actual_completion_date
+                row[12],  # priority
+                row[13],  # risk_level
+                row[14],  # technology_stack
+                row[15],  # team_size
+                float(row[16]) if row[16] else 0,  # budget_allocated
+                float(row[17]) if row[17] else 0,  # budget_spent
+                row[18],  # health_status
+                row[19],  # initiative_type
+                row[20],  # business_unit
+                'Yes' if row[21] else 'No',  # is_pinned
+                'Yes' if row[25] else 'No',  # is_featured
+                row[26],  # featured_month
+                row[22].strftime('%Y-%m-%d %H:%M:%S') if row[22] else '',  # created_at
+                row[23],  # created_by_name
+                row[24],  # created_by_email
+                row[27].strftime('%Y-%m-%d %H:%M:%S') if row[27] else '',  # modified_at
+                row[28],  # modified_by_name
+                row[29],  # modified_by_email
+            ])
+
+        # Auto-size columns
+        for column in ws_initiatives.columns:
+            max_length = 0
+            column_letter = get_column_letter(column[0].column)
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            ws_initiatives.column_dimensions[column_letter].width = adjusted_width
+
+        # ========== SHEET 2: Departments ==========
+        ws_departments = wb.create_sheet("Initiative Departments")
+
+        dept_headers = ['Initiative ID', 'Initiative Name', 'Department']
+        ws_departments.append(dept_headers)
+
+        for cell in ws_departments[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = border
+
+        cursor.execute("""
+            SELECT id_dept.initiative_id, i.use_case_name, id_dept.department
+            FROM initiative_departments id_dept
+            JOIN initiatives i ON id_dept.initiative_id = i.id
+            ORDER BY i.use_case_name, id_dept.department
+        """)
+
+        for row in cursor.fetchall():
+            ws_departments.append([row[0], row[1], row[2]])
+
+        for column in ws_departments.columns:
+            max_length = 0
+            column_letter = get_column_letter(column[0].column)
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            ws_departments.column_dimensions[column_letter].width = adjusted_width
+
+        # ========== SHEET 3: Monthly Metrics ==========
+        ws_metrics = wb.create_sheet("Monthly Metrics")
+
+        metrics_headers = [
+            'Initiative ID', 'Initiative Name', 'Metric Period',
+            'Customer Experience Improvement', 'Time Saved Hours',
+            'Cost Saved Rands', 'Revenue Increase', 'Processed Units',
+            'Additional Metrics (JSON)', 'Comments', 'Created At', 'Modified At'
+        ]
+        ws_metrics.append(metrics_headers)
+
+        for cell in ws_metrics[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            cell.border = border
+
+        cursor.execute("""
+            SELECT mm.*, i.use_case_name
+            FROM monthly_metrics mm
+            JOIN initiatives i ON mm.initiative_id = i.id
+            ORDER BY i.use_case_name, mm.metric_period DESC
+        """)
+
+        for row in cursor.fetchall():
+            ws_metrics.append([
+                row[1],  # initiative_id
+                row[13],  # use_case_name
+                row[2],  # metric_period
+                float(row[3]) if row[3] else 0,  # customer_experience_improvement
+                float(row[4]) if row[4] else 0,  # time_saved_hours
+                float(row[5]) if row[5] else 0,  # cost_saved_rands
+                float(row[6]) if row[6] else 0,  # revenue_increase
+                row[7],  # processed_units
+                row[8],  # additional_metrics
+                row[9],  # comments
+                row[10].strftime('%Y-%m-%d %H:%M:%S') if row[10] else '',  # created_at
+                row[11].strftime('%Y-%m-%d %H:%M:%S') if row[11] else '',  # modified_at
+            ])
+
+        for column in ws_metrics.columns:
+            max_length = 0
+            column_letter = get_column_letter(column[0].column)
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 60)
+            ws_metrics.column_dimensions[column_letter].width = adjusted_width
+
+        # ========== SHEET 4: Risks ==========
+        ws_risks = wb.create_sheet("Risk Assessments")
+
+        risk_headers = [
+            'Risk ID', 'Initiative ID', 'Initiative Name', 'Risk Title',
+            'Risk Description', 'Likelihood', 'Impact', 'Risk Score',
+            'Mitigation Strategy', 'Owner', 'Status', 'Created At', 'Modified At'
+        ]
+        ws_risks.append(risk_headers)
+
+        for cell in ws_risks[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            cell.border = border
+
+        cursor.execute("""
+            SELECT r.*, i.use_case_name
+            FROM risks r
+            JOIN initiatives i ON r.initiative_id = i.id
+            ORDER BY i.use_case_name, r.created_at DESC
+        """)
+
+        for row in cursor.fetchall():
+            ws_risks.append([
+                row[0],  # id
+                row[1],  # initiative_id
+                row[12],  # use_case_name
+                row[2],  # risk_title
+                row[3],  # risk_description
+                row[4],  # likelihood
+                row[5],  # impact
+                row[6],  # risk_score
+                row[7],  # mitigation_strategy
+                row[8],  # owner
+                row[9],  # status
+                row[10].strftime('%Y-%m-%d %H:%M:%S') if row[10] else '',  # created_at
+                row[11].strftime('%Y-%m-%d %H:%M:%S') if row[11] else '',  # modified_at
+            ])
+
+        for column in ws_risks.columns:
+            max_length = 0
+            column_letter = get_column_letter(column[0].column)
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 60)
+            ws_risks.column_dimensions[column_letter].width = adjusted_width
+
+        # ========== SHEET 5: Progress Updates ==========
+        ws_progress = wb.create_sheet("Progress Updates")
+
+        progress_headers = [
+            'Update ID', 'Initiative ID', 'Initiative Name', 'Update Date',
+            'Progress Percentage', 'Status', 'Summary', 'Details',
+            'Achievements', 'Challenges', 'Next Steps', 'Updated By',
+            'Created At'
+        ]
+        ws_progress.append(progress_headers)
+
+        for cell in ws_progress[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            cell.border = border
+
+        cursor.execute("""
+            SELECT pu.*, i.use_case_name
+            FROM progress_updates pu
+            JOIN initiatives i ON pu.initiative_id = i.id
+            ORDER BY i.use_case_name, pu.update_date DESC
+        """)
+
+        for row in cursor.fetchall():
+            ws_progress.append([
+                row[0],  # id
+                row[1],  # initiative_id
+                row[13],  # use_case_name
+                row[2].strftime('%Y-%m-%d') if row[2] else '',  # update_date
+                float(row[3]) if row[3] else 0,  # progress_percentage
+                row[4],  # status
+                row[5],  # summary
+                row[6],  # details
+                row[7],  # achievements
+                row[8],  # challenges
+                row[9],  # next_steps
+                row[10],  # updated_by
+                row[11].strftime('%Y-%m-%d %H:%M:%S') if row[11] else '',  # created_at
+            ])
+
+        for column in ws_progress.columns:
+            max_length = 0
+            column_letter = get_column_letter(column[0].column)
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 60)
+            ws_progress.column_dimensions[column_letter].width = adjusted_width
+
+        conn.close()
+
+        # Save to BytesIO
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        # Generate filename with timestamp
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'AI_Initiatives_Export_{timestamp}.xlsx'
+
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+
+    except Exception as e:
+        logger.error(f"Error exporting initiatives to Excel: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # ==================== Monthly Metrics ====================

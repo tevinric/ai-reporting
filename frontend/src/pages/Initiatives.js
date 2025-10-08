@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Eye, Edit, Trash2, Filter, BarChart3, AlertTriangle } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, Filter, BarChart3, AlertTriangle, Download } from 'lucide-react';
 import { getInitiatives, deleteInitiative, getFieldOptions } from '../services/api';
 import MetricsModal from '../components/MetricsModal';
 import RiskModal from '../components/RiskModal';
@@ -84,6 +84,46 @@ function Initiatives() {
     }
   };
 
+  const handleExportToExcel = async () => {
+    try {
+      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE_URL}/api/initiatives/export`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to export initiatives');
+      }
+
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = 'AI_Initiatives_Export.xlsx';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      alert('Failed to export initiatives to Excel');
+      console.error(err);
+    }
+  };
+
   const getStatusBadge = (status) => {
     const classes = {
       'Ideation': 'badge-info',
@@ -142,13 +182,24 @@ function Initiatives() {
             )}
           </div>
 
-          <button
-            onClick={() => navigate('/initiatives/new')}
-            className="btn btn-primary"
-          >
-            <Plus size={18} />
-            New Initiative
-          </button>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              onClick={handleExportToExcel}
+              className="btn btn-secondary"
+              title="Export all initiatives to Excel"
+            >
+              <Download size={18} />
+              Export to Excel
+            </button>
+
+            <button
+              onClick={() => navigate('/initiatives/new')}
+              className="btn btn-primary"
+            >
+              <Plus size={18} />
+              New Initiative
+            </button>
+          </div>
         </div>
       </div>
 
