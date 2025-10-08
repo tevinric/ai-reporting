@@ -654,10 +654,10 @@ def create_initiative():
             data.get('initiative_type', 'Internal AI'),
             data.get('business_unit'),
             data.get('initiative_image'),
-            DEFAULT_USER['name'],
-            DEFAULT_USER['email'],
-            DEFAULT_USER['name'],
-            DEFAULT_USER['email']
+            data.get('created_by_name', DEFAULT_USER['name']),
+            data.get('created_by_email', DEFAULT_USER['email']),
+            data.get('modified_by_name', DEFAULT_USER['name']),
+            data.get('modified_by_email', DEFAULT_USER['email'])
         ))
 
         # Get the inserted ID
@@ -759,8 +759,8 @@ def update_initiative(initiative_id):
             data.get('initiative_image'),
             1 if data.get('is_featured') else 0,
             featured_month_value,
-            DEFAULT_USER['name'],
-            DEFAULT_USER['email'],
+            data.get('modified_by_name', DEFAULT_USER['name']),
+            data.get('modified_by_email', DEFAULT_USER['email']),
             initiative_id
         ))
 
@@ -1270,8 +1270,8 @@ def update_individual_metric(initiative_id, period, metric_name):
             WHERE id = ?
         """, (
             json.dumps(existing_metrics),
-            DEFAULT_USER['name'],
-            DEFAULT_USER['email'],
+            data.get('modified_by_name', DEFAULT_USER['name']),
+            data.get('modified_by_email', DEFAULT_USER['email']),
             row[0]
         ))
 
@@ -1484,8 +1484,8 @@ def create_initiative_metric(initiative_id):
                 innovation_score,
                 data.get('innovation_comments'),
                 additional_metrics_json,
-                DEFAULT_USER['name'],
-                DEFAULT_USER['email'],
+                data.get('modified_by_name', DEFAULT_USER['name']),
+                data.get('modified_by_email', DEFAULT_USER['email']),
                 existing[0]
             ))
         else:
@@ -1541,10 +1541,10 @@ def create_initiative_metric(initiative_id):
                 innovation_score,
                 data.get('innovation_comments'),
                 additional_metrics_json,
-                DEFAULT_USER['name'],
-                DEFAULT_USER['email'],
-                DEFAULT_USER['name'],
-                DEFAULT_USER['email']
+                data.get('created_by_name', DEFAULT_USER['name']),
+                data.get('created_by_email', DEFAULT_USER['email']),
+                data.get('modified_by_name', DEFAULT_USER['name']),
+                data.get('modified_by_email', DEFAULT_USER['email'])
             ))
 
         conn.commit()
@@ -1927,10 +1927,10 @@ def create_risk(initiative_id):
             data.get('risk_mitigation', ''),
             data.get('controls', ''),
             overall_risk,
-            DEFAULT_USER['name'],
-            DEFAULT_USER['email'],
-            DEFAULT_USER['name'],
-            DEFAULT_USER['email']
+            data.get('created_by_name', DEFAULT_USER['name']),
+            data.get('created_by_email', DEFAULT_USER['email']),
+            data.get('modified_by_name', DEFAULT_USER['name']),
+            data.get('modified_by_email', DEFAULT_USER['email'])
         ))
 
         cursor.execute("SELECT @@IDENTITY")
@@ -1978,8 +1978,8 @@ def update_risk(risk_id):
             data.get('risk_mitigation', ''),
             data.get('controls', ''),
             overall_risk,
-            DEFAULT_USER['name'],
-            DEFAULT_USER['email'],
+            data.get('modified_by_name', DEFAULT_USER['name']),
+            data.get('modified_by_email', DEFAULT_USER['email']),
             risk_id
         ))
 
@@ -2068,10 +2068,10 @@ def create_progress_update(initiative_id):
             data.get('update_type'),
             data.get('update_title'),
             data.get('update_details'),
-            DEFAULT_USER['name'],
-            DEFAULT_USER['email'],
-            DEFAULT_USER['name'],
-            DEFAULT_USER['email']
+            data.get('created_by_name', DEFAULT_USER['name']),
+            data.get('created_by_email', DEFAULT_USER['email']),
+            data.get('modified_by_name', DEFAULT_USER['name']),
+            data.get('modified_by_email', DEFAULT_USER['email'])
         ))
 
         cursor.execute("SELECT @@IDENTITY")
@@ -2128,8 +2128,8 @@ def update_progress_update(update_id):
             data.get('update_type'),
             data.get('update_title'),
             data.get('update_details'),
-            DEFAULT_USER['name'],
-            DEFAULT_USER['email'],
+            data.get('modified_by_name', DEFAULT_USER['name']),
+            data.get('modified_by_email', DEFAULT_USER['email']),
             update_id
         ))
 
