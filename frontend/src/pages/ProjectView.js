@@ -824,10 +824,10 @@ function ProjectView() {
       {/* View Progress Update Modal */}
       {viewProgressUpdate && (
         <div className="modal-overlay" onClick={() => setViewProgressUpdate(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
             <div className="modal-header">
               <h2>Update Details</h2>
-              <button onClick={() => setViewProgressUpdate(null)} className="modal-close">
+              <button onClick={() => setViewProgressUpdate(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
                 <X size={24} />
               </button>
             </div>
