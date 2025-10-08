@@ -1030,8 +1030,9 @@ def export_initiatives_to_excel():
 
         risk_headers = [
             'Risk ID', 'Initiative ID', 'Initiative Name', 'Risk Title',
-            'Risk Description', 'Likelihood', 'Impact', 'Risk Score',
-            'Mitigation Strategy', 'Owner', 'Status', 'Created At', 'Modified At'
+            'Risk Detail', 'Frequency', 'Severity', 'Overall Risk',
+            'Mitigation Strategy', 'Controls', 'Created At', 'Created By',
+            'Modified At', 'Modified By'
         ]
         ws_risks.append(risk_headers)
 
@@ -1052,17 +1053,18 @@ def export_initiatives_to_excel():
             ws_risks.append([
                 row[0],  # id
                 row[1],  # initiative_id
-                row[12],  # use_case_name
+                row[15],  # use_case_name
                 row[2],  # risk_title
-                row[3],  # risk_description
-                row[4],  # likelihood
-                row[5],  # impact
-                row[6],  # risk_score
-                row[7],  # mitigation_strategy
-                row[8],  # owner
-                row[9],  # status
-                row[10].strftime('%Y-%m-%d %H:%M:%S') if row[10] else '',  # created_at
-                row[11].strftime('%Y-%m-%d %H:%M:%S') if row[11] else '',  # modified_at
+                row[3],  # risk_detail
+                row[4],  # frequency
+                row[5],  # severity
+                row[8],  # overall_risk
+                row[6],  # risk_mitigation
+                row[7],  # controls
+                row[9].strftime('%Y-%m-%d %H:%M:%S') if row[9] else '',  # created_at
+                row[10],  # created_by_name
+                row[12].strftime('%Y-%m-%d %H:%M:%S') if row[12] else '',  # modified_at
+                row[13],  # modified_by_name
             ])
 
         for column in ws_risks.columns:
@@ -1081,10 +1083,9 @@ def export_initiatives_to_excel():
         ws_progress = wb.create_sheet("Progress Updates")
 
         progress_headers = [
-            'Update ID', 'Initiative ID', 'Initiative Name', 'Update Date',
-            'Progress Percentage', 'Status', 'Summary', 'Details',
-            'Achievements', 'Challenges', 'Next Steps', 'Updated By',
-            'Created At'
+            'Update ID', 'Initiative ID', 'Initiative Name', 'Update Type',
+            'Update Title', 'Update Details', 'Created At', 'Created By',
+            'Modified At', 'Modified By'
         ]
         ws_progress.append(progress_headers)
 
@@ -1098,24 +1099,21 @@ def export_initiatives_to_excel():
             SELECT pu.*, i.use_case_name
             FROM progress_updates pu
             JOIN initiatives i ON pu.initiative_id = i.id
-            ORDER BY i.use_case_name, pu.update_date DESC
+            ORDER BY i.use_case_name, pu.created_at DESC
         """)
 
         for row in cursor.fetchall():
             ws_progress.append([
                 row[0],  # id
                 row[1],  # initiative_id
-                row[13],  # use_case_name
-                row[2].strftime('%Y-%m-%d') if row[2] else '',  # update_date
-                float(row[3]) if row[3] else 0,  # progress_percentage
-                row[4],  # status
-                row[5],  # summary
-                row[6],  # details
-                row[7],  # achievements
-                row[8],  # challenges
-                row[9],  # next_steps
-                row[10],  # updated_by
-                row[11].strftime('%Y-%m-%d %H:%M:%S') if row[11] else '',  # created_at
+                row[11],  # use_case_name
+                row[2],  # update_type
+                row[3],  # update_title
+                row[4],  # update_details
+                row[5].strftime('%Y-%m-%d %H:%M:%S') if row[5] else '',  # created_at
+                row[6],  # created_by_name
+                row[8].strftime('%Y-%m-%d %H:%M:%S') if row[8] else '',  # modified_at
+                row[9],  # modified_by_name
             ])
 
         for column in ws_progress.columns:
