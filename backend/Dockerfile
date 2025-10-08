@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM tihacr3rdparty.azurecr.io/python:3.10-slim
 
 # Set work directory
 WORKDIR /app
