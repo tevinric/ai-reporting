@@ -5,15 +5,15 @@ export const msalConfig = {
     auth: {
         clientId: process.env.REACT_APP_AZURE_CLIENT_ID || "",
         authority: `https://login.microsoftonline.com/${process.env.REACT_APP_AZURE_TENANT_ID || ""}`,
-        redirectUri: process.env.REACT_APP_REDIRECT_URI || `${window.location.origin}/`,
-        postLogoutRedirectUri: process.env.REACT_APP_REDIRECT_URI || `${window.location.origin}/`,
-        navigateToLoginRequestUrl: false,
+        redirectUri: process.env.REACT_APP_REDIRECT_URI || window.location.origin,
+        postLogoutRedirectUri: process.env.REACT_APP_REDIRECT_URI || window.location.origin,
+        navigateToLoginRequestUrl: true,
         clientCapabilities: ["CP1"]
     },
     cache: {
-        cacheLocation: "localStorage",
-        storeAuthStateInCookie: false,
-        secureCookies: false
+        cacheLocation: "sessionStorage",
+        storeAuthStateInCookie: true,
+        secureCookies: true
     },
     system: {
         loggerOptions: {
@@ -57,10 +57,7 @@ export const loginRequest = {
         "User.Read",
         "email"
     ],
-    extraScopesToConsent: ["User.ReadBasic.All"],
-    prompt: "select_account",
-    loginHint: "",
-    domainHint: ""
+    extraScopesToConsent: ["User.ReadBasic.All"]
 };
 
 // Microsoft Graph configuration
