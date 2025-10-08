@@ -3,8 +3,11 @@ import { X, Save, BarChart3, Edit2, Trash2 } from 'lucide-react';
 import { getInitiativeMetrics, saveInitiativeMetric, getCustomMetrics } from '../services/api';
 import axios from 'axios';
 import { API_ENDPOINTS } from '../config/api';
+import { useAuth } from '../context/AuthContext';
+import { getCurrentUser } from '../utils/userUtils';
 
 function MetricsModal({ initiative, onClose }) {
+  const { user } = useAuth();
   const [metrics, setMetrics] = useState([]);
   const [customMetrics, setCustomMetrics] = useState([]);
   const [selectedMetrics, setSelectedMetrics] = useState([]);
@@ -81,7 +84,19 @@ function MetricsModal({ initiative, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await saveInitiativeMetric(initiative.id, formData);
+      // Get current user based on environment (DEV = test user, PROD = Entra ID user)
+      const currentUser = getCurrentUser(user);
+
+      // Add user information to formData
+      const dataWithUser = {
+        ...formData,
+        created_by_name: currentUser.name,
+        created_by_email: currentUser.email,
+        modified_by_name: currentUser.name,
+        modified_by_email: currentUser.email
+      };
+
+      await saveInitiativeMetric(initiative.id, dataWithUser);
       setFormData({
         metric_period: '',
         additional_metrics: {}
@@ -106,11 +121,16 @@ function MetricsModal({ initiative, onClose }) {
 
   const handleSaveEdit = async () => {
     try {
+      // Get current user based on environment (DEV = test user, PROD = Entra ID user)
+      const currentUser = getCurrentUser(user);
+
       await axios.put(
         `${API_ENDPOINTS.INITIATIVE_METRICS(initiative.id)}/${editingMetric.period}/metric/${encodeURIComponent(editingMetric.metricName)}`,
         {
           value: editingMetric.value,
-          comments: editingMetric.comments
+          comments: editingMetric.comments,
+          modified_by_name: currentUser.name,
+          modified_by_email: currentUser.email
         }
       );
       setEditingMetric(null);

@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Edit, Trash2, Plus, AlertTriangle } from 'lucide-react';
 import { getInitiativeRisks, createRisk, updateRisk, deleteRisk, getFieldOptions } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { getCurrentUser } from '../utils/userUtils';
 
 function RiskModal({ initiativeId, onClose }) {
+  const { user } = useAuth();
   const [risks, setRisks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -55,10 +58,22 @@ function RiskModal({ initiativeId, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Get current user based on environment (DEV = test user, PROD = Entra ID user)
+      const currentUser = getCurrentUser(user);
+
+      // Add user information to formData
+      const dataWithUser = {
+        ...formData,
+        created_by_name: currentUser.name,
+        created_by_email: currentUser.email,
+        modified_by_name: currentUser.name,
+        modified_by_email: currentUser.email
+      };
+
       if (editingRisk) {
-        await updateRisk(editingRisk.id, formData);
+        await updateRisk(editingRisk.id, dataWithUser);
       } else {
-        await createRisk(initiativeId, formData);
+        await createRisk(initiativeId, dataWithUser);
       }
       setFormData({ risk_title: '', risk_detail: '', frequency: '', severity: '', risk_mitigation: '', controls: '' });
       setShowForm(false);

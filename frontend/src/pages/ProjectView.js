@@ -9,10 +9,13 @@ import ProgressUpdateModal from '../components/ProgressUpdateModal';
 import ProgressTimeline from '../components/ProgressTimeline';
 import axios from 'axios';
 import { API_ENDPOINTS } from '../config/api';
+import { useAuth } from '../context/AuthContext';
+import { getCurrentUser } from '../utils/userUtils';
 
 function ProjectView() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [initiative, setInitiative] = useState(null);
   const [metrics, setMetrics] = useState([]);
@@ -73,10 +76,22 @@ function ProjectView() {
   };
 
   const handleSaveProgressUpdate = async (formData) => {
+    // Get current user based on environment (DEV = test user, PROD = Entra ID user)
+    const currentUser = getCurrentUser(user);
+
+    // Add user information to formData
+    const dataWithUser = {
+      ...formData,
+      created_by_name: currentUser.name,
+      created_by_email: currentUser.email,
+      modified_by_name: currentUser.name,
+      modified_by_email: currentUser.email
+    };
+
     if (selectedProgressUpdate) {
-      await updateProgressUpdate(selectedProgressUpdate.id, formData);
+      await updateProgressUpdate(selectedProgressUpdate.id, dataWithUser);
     } else {
-      await createProgressUpdate(id, formData);
+      await createProgressUpdate(id, dataWithUser);
     }
     loadProgressUpdates();
     setShowProgressUpdateModal(false);

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { X, Plus } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { getCurrentUser } from '../utils/userUtils';
 import {
   getInitiativeById,
   createInitiative,
@@ -13,6 +15,7 @@ import {
 function InitiativeForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const isEdit = !!id;
 
   const [loading, setLoading] = useState(false);
@@ -247,6 +250,9 @@ function InitiativeForm() {
       setLoading(true);
       setError(null);
 
+      // Get current user based on environment (DEV = test user, PROD = Entra ID user)
+      const currentUser = getCurrentUser(user);
+
       // Format the data before sending to backend
       const formattedData = {
         // Trim all string fields
@@ -278,7 +284,12 @@ function InitiativeForm() {
         // Preserve departments array
         departments: formData.departments || [],
         // Include initiative image
-        initiative_image: formData.initiative_image || ''
+        initiative_image: formData.initiative_image || '',
+        // Add user information based on environment
+        created_by_name: currentUser.name,
+        created_by_email: currentUser.email,
+        modified_by_name: currentUser.name,
+        modified_by_email: currentUser.email
       };
 
       console.log('Submitting initiative - date values:', {
