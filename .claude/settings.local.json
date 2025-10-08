@@ -4,7 +4,8 @@
       "Read(//c/Users/tevin/OneDrive/One note/projects/email_traiging_sqa/**)",
       "Bash(mkdir:*)",
       "Bash(python:*)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Read(//c/Users/tevin/OneDrive/One note/projects/**)"
     ],
     "deny": [],
     "ask": []

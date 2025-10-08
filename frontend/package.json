@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "@azure/msal-browser": "^3.11.1",
+    "@azure/msal-react": "^2.0.15",
     "@tanstack/react-table": "^8.20.5",
     "axios": "^1.7.4",
     "lucide-react": "^0.428.0",
