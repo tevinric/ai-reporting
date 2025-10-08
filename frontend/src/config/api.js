@@ -7,6 +7,9 @@ export const API_ENDPOINTS = {
   // Dashboard
   DASHBOARD_STATS: `${API_BASE_URL}/api/dashboard/stats`,
   MONTHLY_TRENDS: `${API_BASE_URL}/api/dashboard/monthly-trends`,
+  DASHBOARD_METRIC: (metricName) => `${API_BASE_URL}/api/dashboard/metric/${encodeURIComponent(metricName)}`,
+  DASHBOARD_CATEGORY: (category) => `${API_BASE_URL}/api/dashboard/category/${category}`,
+  DASHBOARD_PERIOD: (period) => `${API_BASE_URL}/api/dashboard/stats/period/${period}`,
 
   // Initiatives
   INITIATIVES: `${API_BASE_URL}/api/initiatives`,

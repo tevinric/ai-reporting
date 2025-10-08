@@ -173,28 +173,31 @@ function Dashboard() {
 
   const handlePeriodClick = async (period) => {
     try {
-      const response = await axios.get(`${API_ENDPOINTS.DASHBOARD_STATS}/period/${period}`);
+      const response = await axios.get(API_ENDPOINTS.DASHBOARD_PERIOD(period));
       setDrilldownData(response.data);
     } catch (err) {
       console.error('Failed to load drilldown data', err);
+      alert('Failed to load period data. Please try again.');
     }
   };
 
   const handleMetricClick = async (metricName) => {
     try {
-      const response = await axios.get(`${API_ENDPOINTS.DASHBOARD_STATS}/metric/${encodeURIComponent(metricName)}`);
+      const response = await axios.get(API_ENDPOINTS.DASHBOARD_METRIC(metricName));
       setDrilldownData(response.data);
     } catch (err) {
       console.error('Failed to load metric drilldown', err);
+      alert('Failed to load metric breakdown. Please try again.');
     }
   };
 
   const handleCategoryClick = async (category) => {
     try {
-      const response = await axios.get(`${API_ENDPOINTS.DASHBOARD_STATS}/category/${category}`);
+      const response = await axios.get(API_ENDPOINTS.DASHBOARD_CATEGORY(category));
       setCategoryData(response.data);
     } catch (err) {
       console.error('Failed to load category data', err);
+      alert('Failed to load category data. Please try again.');
     }
   };
 
