@@ -161,6 +161,9 @@ function Dashboard() {
       if (selectedInitiativeType) {
         params.append('initiative_type', selectedInitiativeType);
       }
+      if (selectedBusinessUnit) {
+        params.append('business_unit', selectedBusinessUnit);
+      }
 
       const queryString = params.toString();
       const url = `${API_ENDPOINTS.MONTHLY_TRENDS}${queryString ? `?${queryString}` : ''}`;

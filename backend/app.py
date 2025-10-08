@@ -189,6 +189,7 @@ def get_monthly_trends():
         # Get filter parameters
         initiative_ids = request.args.get('initiative_ids')  # Comma-separated IDs
         initiative_type = request.args.get('initiative_type')  # Single type filter
+        business_unit = request.args.get('business_unit')  # Single business unit filter
 
         # Build WHERE clause based on filters
         where_clauses = []
@@ -204,6 +205,10 @@ def get_monthly_trends():
         if initiative_type:
             where_clauses.append("i.initiative_type = ?")
             params.append(initiative_type)
+
+        if business_unit:
+            where_clauses.append("i.business_unit = ?")
+            params.append(business_unit)
 
         where_sql = ""
         if where_clauses:
