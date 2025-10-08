@@ -469,12 +469,27 @@ function Dashboard() {
                 {displayStats.pinned_initiatives.map(initiative => (
                   <tr key={initiative.id}>
                     <td>
-                      <strong>{initiative.use_case_name}</strong>
-                      <br />
-                      <span style={{ fontSize: '12px', color: '#64748b' }}>
-                        {initiative.description?.substring(0, 60)}
-                        {initiative.description?.length > 60 ? '...' : ''}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        {initiative.initiative_image ? (
+                          <img
+                            src={initiative.initiative_image}
+                            alt={initiative.use_case_name}
+                            className="initiative-avatar"
+                          />
+                        ) : (
+                          <div className="initiative-avatar-placeholder">
+                            {initiative.use_case_name?.charAt(0) || 'I'}
+                          </div>
+                        )}
+                        <div>
+                          <strong>{initiative.use_case_name}</strong>
+                          <br />
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>
+                            {initiative.description?.substring(0, 60)}
+                            {initiative.description?.length > 60 ? '...' : ''}
+                          </span>
+                        </div>
+                      </div>
                     </td>
                     <td style={{ fontSize: '13px' }}>{initiative.initiative_type || 'Internal AI'}</td>
                     <td style={{ fontSize: '13px' }}>{initiative.departments || '-'}</td>
@@ -842,12 +857,27 @@ function Dashboard() {
                   {paginatedInitiatives.map(initiative => (
                     <tr key={initiative.id}>
                       <td>
-                        <strong>{initiative.use_case_name}</strong>
-                        {initiative.description && (
-                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                            {initiative.description.substring(0, 80)}...
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          {initiative.initiative_image ? (
+                            <img
+                              src={initiative.initiative_image}
+                              alt={initiative.use_case_name}
+                              className="initiative-avatar"
+                            />
+                          ) : (
+                            <div className="initiative-avatar-placeholder">
+                              {initiative.use_case_name?.charAt(0) || 'I'}
+                            </div>
+                          )}
+                          <div>
+                            <strong>{initiative.use_case_name}</strong>
+                            {initiative.description && (
+                              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                                {initiative.description.substring(0, 80)}...
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </td>
                       <td style={{ fontSize: '13px' }}>{initiative.initiative_type || 'Internal AI'}</td>
                       <td>

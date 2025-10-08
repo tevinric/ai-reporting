@@ -85,7 +85,17 @@ function FeaturedSolutions() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                    <Star size={20} fill="#f59e0b" stroke="#f59e0b" />
+                    {solution.initiative_image ? (
+                      <img
+                        src={solution.initiative_image}
+                        alt={solution.use_case_name}
+                        className="initiative-avatar"
+                      />
+                    ) : (
+                      <div className="initiative-avatar-placeholder">
+                        <Star size={20} fill="white" stroke="white" />
+                      </div>
+                    )}
                     <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#1e293b', margin: 0 }}>
                       {solution.use_case_name}
                     </h2>

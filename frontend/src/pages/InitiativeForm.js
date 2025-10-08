@@ -276,7 +276,9 @@ function InitiativeForm() {
         actual_completion_date: formData.actual_completion_date || '',
         featured_month: formData.featured_month || '',
         // Preserve departments array
-        departments: formData.departments || []
+        departments: formData.departments || [],
+        // Include initiative image
+        initiative_image: formData.initiative_image || ''
       };
 
       console.log('Submitting initiative - date values:', {
