@@ -397,6 +397,14 @@ function ProjectView() {
             <div>
               <h1 style={{ margin: 0 }}>{initiative.use_case_name}</h1>
               <p style={{ margin: '8px 0 0 0' }}>{initiative.description}</p>
+              <div style={{ marginTop: '12px', display: 'flex', gap: '24px', fontSize: '13px', color: '#64748b' }}>
+                <div>
+                  <span style={{ fontWeight: '600' }}>Created by:</span> {initiative.created_by_name || 'N/A'} ({initiative.created_by_email || ''})
+                </div>
+                <div>
+                  <span style={{ fontWeight: '600' }}>Last modified by:</span> {initiative.modified_by_name || 'N/A'} ({initiative.modified_by_email || ''})
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -338,9 +338,14 @@ function MetricsModal({ initiative, onClose }) {
                           {metric.metric_period}
                         </h4>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span style={{ fontSize: '11px', color: '#64748b' }}>
-                            Updated: {new Date(metric.modified_at).toLocaleDateString()}
-                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span style={{ fontSize: '11px', color: '#64748b' }}>
+                              Created by: <strong>{metric.created_by_name || 'N/A'}</strong> ({metric.created_by_email || ''})
+                            </span>
+                            <span style={{ fontSize: '11px', color: '#64748b' }}>
+                              Last modified by: <strong>{metric.modified_by_name || 'N/A'}</strong> on {new Date(metric.modified_at).toLocaleDateString()}
+                            </span>
+                          </div>
                           <button
                             onClick={() => handleDeletePeriod(metric.metric_period)}
                             className="btn btn-danger"

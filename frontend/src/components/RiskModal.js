@@ -239,6 +239,7 @@ function RiskModal({ initiativeId, onClose }) {
                     <th>Overall Risk</th>
                     <th>Mitigation</th>
                     <th>Controls</th>
+                    <th>Created By</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -273,6 +274,14 @@ function RiskModal({ initiativeId, onClose }) {
                         {risk.controls ? (
                           <span>{risk.controls.substring(0, 80)}{risk.controls.length > 80 ? '...' : ''}</span>
                         ) : '-'}
+                      </td>
+                      <td style={{ fontSize: '12px' }}>
+                        <div style={{ fontWeight: '600', color: '#374151' }}>
+                          {risk.created_by_name || 'N/A'}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                          {risk.created_by_email || ''}
+                        </div>
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '8px' }}>
