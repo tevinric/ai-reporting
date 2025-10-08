@@ -1,3 +1,7 @@
 backend/runnables/
 frontend/env_var_init.sh
 frontend/env_var_init.sh
+frontend/env_var_init.sh
+frontend/.env.example
+frontend/env_var_init.sh
+frontend/.env.example
