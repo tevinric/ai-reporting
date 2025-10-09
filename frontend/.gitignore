@@ -13,7 +13,6 @@
 .DS_Store
 
 # Environment files (contains secrets)
-.env
 .env.local
 .env.development.local
 .env.test.local
