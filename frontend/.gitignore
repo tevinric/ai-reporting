@@ -11,7 +11,7 @@
 
 # misc
 .DS_Store
-
+.env
 # Environment files (contains secrets)
 .env.local
 .env.development.local
