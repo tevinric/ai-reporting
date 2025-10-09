@@ -16,9 +16,10 @@ import './App.css';
 
 function ProtectedRoute({ children }) {
   const isAuthenticated = useIsAuthenticated();
-  const { inProgress } = useMsal();
+  const { inProgress, accounts } = useMsal();
   const { loading } = useAuth();
 
+  // Wait for any authentication operations to complete
   if (inProgress !== 'none' || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -27,14 +28,18 @@ function ProtectedRoute({ children }) {
     );
   }
 
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+  // Check both isAuthenticated hook and accounts array for redundancy
+  const hasValidAuth = isAuthenticated || accounts.length > 0;
+
+  return hasValidAuth ? children : <Navigate to="/login" replace />;
 }
 
 function AppContent() {
   const isAuthenticated = useIsAuthenticated();
   const { inProgress } = useMsal();
 
-  if (inProgress === 'startup') {
+  // Show loading during startup or when handling redirect from Microsoft
+  if (inProgress === 'startup' || inProgress === 'handleRedirect') {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-lg">Loading application...</div>

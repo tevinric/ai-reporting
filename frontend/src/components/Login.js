@@ -18,12 +18,13 @@ const Login = () => {
         }
     }, []);
 
+    // Redirect authenticated users immediately
     useEffect(() => {
-        if (isAuthenticated && inProgress === 'none') {
-            console.log('User authenticated, redirecting to dashboard...');
+        if ((isAuthenticated || accounts.length > 0) && inProgress === 'none') {
+            console.log('User already authenticated, redirecting to dashboard...');
             navigate('/', { replace: true });
         }
-    }, [isAuthenticated, inProgress, navigate]);
+    }, [isAuthenticated, accounts.length, inProgress, navigate]);
 
     const handleLogin = async () => {
         setError(null);

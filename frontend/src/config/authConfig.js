@@ -7,7 +7,7 @@ export const msalConfig = {
         authority: `https://login.microsoftonline.com/${process.env.REACT_APP_AZURE_TENANT_ID || ""}`,
         redirectUri: process.env.REACT_APP_REDIRECT_URI || window.location.origin,
         postLogoutRedirectUri: process.env.REACT_APP_REDIRECT_URI || window.location.origin,
-        navigateToLoginRequestUrl: true,
+        navigateToLoginRequestUrl: false,
         clientCapabilities: ["CP1"]
     },
     cache: {

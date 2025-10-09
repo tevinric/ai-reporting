@@ -16,11 +16,21 @@ msalInstance.initialize().then(() => {
   if (tokenResponse !== null) {
     console.log('Login redirect successful:', tokenResponse.account);
     msalInstance.setActiveAccount(tokenResponse.account);
+
+    // If we just completed authentication and are on login page, redirect to dashboard
+    if (window.location.pathname === '/login' || window.location.pathname === '/') {
+      window.history.replaceState(null, '', '/');
+    }
   } else {
     // Check if there's already an account
     const accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {
       msalInstance.setActiveAccount(accounts[0]);
+
+      // If user is already authenticated and on login page, redirect to dashboard
+      if (window.location.pathname === '/login') {
+        window.history.replaceState(null, '', '/');
+      }
     }
   }
 
